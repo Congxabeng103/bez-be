@@ -1,15 +1,21 @@
 package com.poly.bezbe.entity;
 
+
+import com.poly.bezbe.enums.AuthProvider;
+import com.poly.bezbe.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 
+/**
+ * Lớp User này là "bản thiết kế" cho đối tượng người dùng,
+ * ánh xạ trực tiếp tới bảng `users` trong CSDL.
+ * Nó cũng implement UserDetails để tích hợp với Spring Security.
+ */
 @Entity
 @Table(name = "users")
 @Getter
@@ -17,59 +23,74 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class User implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "email", unique = true, nullable = false)
+    // --- Thông tin xác thực ---
+    @Column(unique = true, nullable = false, length = 100)
     private String email;
 
-    @Column(name = "password", nullable = false)
+    @Column(length = 255) // Mật khẩu có thể null đối với tài khoản social
     private String password;
 
-    @Column(name = "first_name", length = 50)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private Role role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private AuthProvider provider;
+
+    // --- Thông tin cá nhân ---
+    // ✨ Quan trọng: Dùng NVARCHAR để hỗ trợ tiếng Việt có dấu
+    @Column(columnDefinition = "NVARCHAR(50)")
     private String firstName;
 
-    @Column(name = "last_name", length = 50)
+    @Column(columnDefinition = "NVARCHAR(50)")
     private String lastName;
 
-    @Column(name = "avatar_url")
-    private String avatarUrl;
+    // --- Trạng thái và Token ---
+    @Builder.Default // ✨ Đảm bảo giá trị mặc định được áp dụng khi dùng Builder
+    private boolean isActive = false; // Mặc định là false để yêu cầu kích hoạt
 
-    @Column(name = "gender")
-    private String gender;
+    private String resetPasswordToken;
 
-    @Column(name = "birthday")
-    private LocalDate birthday;
+    @Column(name = "activation_token")
+    private String activationToken;
 
-    @Column(name = "phone", length = 20)
-    private String phone;
 
-    @Column(name = "address")
-    private String address;
+    // --- Các phương thức bắt buộc của UserDetails ---
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority(role.name()));
+    }
 
-    @CreationTimestamp
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    @Override
+    public String getUsername() {
+        return email;
+    }
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
 
-    @Column(name = "is_active")
-    private boolean isActive = true;
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
 
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(
-            name = "user_roles",
-            joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "role_id")
-    )
-    private Set<Role> roles;
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ShippingAddress> shippingAddresses;
-
-    // Các quan hệ khác...
+    @Override
+    public boolean isEnabled() {
+        // Trạng thái tài khoản được quyết định bởi trường isActive
+        return this.isActive;
+    }
 }

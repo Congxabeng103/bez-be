@@ -5,16 +5,12 @@ import lombok.*;
 
 @Entity
 @Table(name = "product_variant_attributes")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ProductVariantAttribute {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", nullable = false, unique = true)
-    private String name; // Ví dụ: "Color", "Size"
+    @Column(name = "name", nullable = false, unique = true, columnDefinition = "NVARCHAR(100)")
+    private String name; // Ví dụ: "Màu sắc", "Kích cỡ"
 }

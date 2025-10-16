@@ -5,11 +5,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "product_variant_attribute_values")
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class ProductVariantAttributeValue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -19,6 +15,6 @@ public class ProductVariantAttributeValue {
     @JoinColumn(name = "attribute_id", nullable = false)
     private ProductVariantAttribute attribute;
 
-    @Column(name = "value", nullable = false)
-    private String value; // Ví dụ: "Red", "XL"
+    @Column(name = "value", nullable = false, columnDefinition = "NVARCHAR(100)")
+    private String value; // Ví dụ: "Đỏ", "XL"
 }
