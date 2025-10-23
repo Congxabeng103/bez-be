@@ -11,9 +11,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PageResponseDTO<T> {
-    private List<T> content;      // Nội dung của trang hiện tại
-    private int pageNo;           // Số trang hiện tại
-    private int pageSize;         // Kích thước của trang
-    private long totalElements;   // Tổng số phần tử
-    private int totalPages;       // Tổng số trang
+    private List<T> content;
+    private int pageNo;
+    private int pageSize;
+    private long totalElements;
+    private int totalPages;
 }

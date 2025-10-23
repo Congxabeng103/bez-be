@@ -49,5 +49,5 @@ public class ProductVariant {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<ProductVariantValue> attributeValues;
+    private Set<VariantValue> attributeValues;
 }

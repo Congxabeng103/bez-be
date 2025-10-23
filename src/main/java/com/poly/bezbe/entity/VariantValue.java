@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "product_variant_values",
+@Table(name = "variant_values",
         uniqueConstraints = {
                 @UniqueConstraint(columnNames = {"variant_id", "attribute_value_id"})
         })
@@ -13,7 +13,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductVariantValue {
+public class VariantValue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,5 +24,5 @@ public class ProductVariantValue {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attribute_value_id", nullable = false)
-    private ProductVariantAttributeValue attributeValue;
+    private AttributeValue attributeValue;
 }

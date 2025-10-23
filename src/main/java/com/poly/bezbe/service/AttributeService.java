@@ -1,19 +1,19 @@
 package com.poly.bezbe.service;
 
-import com.poly.bezbe.dto.request.attribute.AttributeRequestDTO;
-import com.poly.bezbe.dto.request.attribute.AttributeValueRequest;
-import com.poly.bezbe.dto.response.attribute.AttributeResponseDTO;
-import com.poly.bezbe.dto.response.attribute.AttributeValueResponseDTO;
-import com.poly.bezbe.dto.response.PageResponseDTO;
-import com.poly.bezbe.entity.ProductVariantAttribute;
-import com.poly.bezbe.entity.ProductVariantAttributeValue;
+import com.poly.bezbe.dto.request.product.AttributeRequestDTO;
+import com.poly.bezbe.dto.request.product.AttributeValueRequestDTO;
+import com.poly.bezbe.dto.response.product.AttributeResponseDTO;
+import com.poly.bezbe.dto.response.product.AttributeValueResponseDTO;
+import com.poly.bezbe.entity.Attribute;
+import com.poly.bezbe.entity.AttributeValue;
 import com.poly.bezbe.exception.ResourceNotFoundException;
-import com.poly.bezbe.repository.ProductVariantAttributeRepository;
-import com.poly.bezbe.repository.ProductVariantAttributeValueRepository;
+import com.poly.bezbe.repository.AttributeRepository;
+import com.poly.bezbe.repository.AttributeValueRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collections; // Import Collections
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,97 +21,104 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AttributeService {
 
-    private final ProductVariantAttributeRepository attributeRepository;
-    private final ProductVariantAttributeValueRepository valueRepository;
+    private final AttributeRepository attributeRepository;
+    private final AttributeValueRepository attributeValueRepository;
 
-    // --- LOGIC CHO THUỘC TÍNH (ATTRIBUTE) ---
-
-    public AttributeResponseDTO createAttribute(AttributeRequestDTO request) {
-        ProductVariantAttribute attribute = ProductVariantAttribute.builder().name(request.getName()).build();
-        ProductVariantAttribute savedAttribute = attributeRepository.save(attribute);
-        return convertToAttributeDTO(savedAttribute);
-    }
-
-    public PageResponseDTO<AttributeResponseDTO> getAllAttributes(Pageable pageable) {
-        Page<ProductVariantAttribute> attributePage = attributeRepository.findAll(pageable);
-        List<AttributeResponseDTO> content = attributePage.getContent().stream()
-                .map(this::convertToAttributeDTO)
+    // Hàm private để chuyển đổi Attribute Entity -> DTO (bao gồm cả values)
+    private AttributeResponseDTO mapToAttributeDTO(Attribute attribute) {
+        // Lấy danh sách các giá trị con từ DB
+        List<AttributeValueResponseDTO> valueDTOs = attributeValueRepository.findByAttribute_Id(attribute.getId())
+                .stream()
+                .map(val -> AttributeValueResponseDTO.builder()
+                        .id(val.getId())
+                        .value(val.getValue())
+                        .build())
                 .collect(Collectors.toList());
 
-        return PageResponseDTO.<AttributeResponseDTO>builder()
-                .content(content)
-                .pageNo(attributePage.getNumber())
-                .pageSize(attributePage.getSize())
-                .totalElements(attributePage.getTotalElements())
-                .totalPages(attributePage.getTotalPages())
+        return AttributeResponseDTO.builder()
+                .id(attribute.getId())
+                .name(attribute.getName())
+                .values(valueDTOs) // Gắn danh sách giá trị vào DTO
                 .build();
     }
 
-    public AttributeResponseDTO getAttributeById(Long id) {
-        ProductVariantAttribute attribute = attributeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thuộc tính với ID: " + id));
-        return convertToAttributeDTO(attribute);
+    /**
+     * Lấy tất cả thuộc tính và giá trị của chúng.
+     */
+    @Transactional(readOnly = true)
+    public List<AttributeResponseDTO> getAllAttributes() {
+        return attributeRepository.findAll().stream()
+                .map(this::mapToAttributeDTO) // Dùng hàm map đã có sẵn
+                .collect(Collectors.toList());
     }
 
-    public AttributeResponseDTO updateAttribute(Long id, AttributeRequestDTO request) {
-        ProductVariantAttribute existingAttribute = attributeRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thuộc tính với ID: " + id));
-        existingAttribute.setName(request.getName());
-        ProductVariantAttribute updatedAttribute = attributeRepository.save(existingAttribute);
-        return convertToAttributeDTO(updatedAttribute);
-    }
-
-    public void deleteAttribute(Long id) {
-        if (!attributeRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Không tìm thấy thuộc tính với ID: " + id);
-        }
-        attributeRepository.deleteById(id);
-    }
-
-    // --- LOGIC CHO GIÁ TRỊ THUỘC TÍNH (ATTRIBUTE VALUE) ---
-
-    public AttributeValueResponseDTO createAttributeValue(Long attributeId, AttributeValueRequest request) {
-        ProductVariantAttribute attribute = attributeRepository.findById(attributeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thuộc tính cha với ID: " + attributeId));
-        ProductVariantAttributeValue newValue = ProductVariantAttributeValue.builder()
-                .attribute(attribute)
-                .value(request.getValue())
+    /**
+     * Tạo một thuộc tính mới (ví dụ: "Chất liệu").
+     */
+    @Transactional
+    public AttributeResponseDTO createAttribute(AttributeRequestDTO request) {
+        // (Bạn có thể thêm kiểm tra trùng tên ở đây nếu muốn)
+        Attribute attribute = Attribute.builder()
+                .name(request.getName().trim()) // Trim khoảng trắng
                 .build();
-        ProductVariantAttributeValue savedValue = valueRepository.save(newValue);
-        return convertToValueDTO(savedValue);
+        Attribute savedAttribute = attributeRepository.save(attribute);
+        // Trả về DTO với danh sách values rỗng ban đầu
+        return AttributeResponseDTO.builder()
+                .id(savedAttribute.getId())
+                .name(savedAttribute.getName())
+                .values(Collections.emptyList())
+                .build();
     }
 
-    public PageResponseDTO<AttributeValueResponseDTO> getValuesForAttribute(Long attributeId, Pageable pageable) {
+    /**
+     * Xóa một thuộc tính và tất cả giá trị con của nó (do Cascade).
+     */
+    @Transactional
+    public void deleteAttribute(Long attributeId) {
         if (!attributeRepository.existsById(attributeId)) {
             throw new ResourceNotFoundException("Không tìm thấy thuộc tính với ID: " + attributeId);
         }
-        Page<ProductVariantAttributeValue> valuePage = valueRepository.findAllByAttributeId(attributeId, pageable);
-        List<AttributeValueResponseDTO> content = valuePage.getContent().stream()
-                .map(this::convertToValueDTO)
-                .collect(Collectors.toList());
+        // Do có CascadeType.ALL (hoặc tương tự) trong mối quan hệ,
+        // việc xóa Attribute sẽ tự động xóa các AttributeValue liên quan.
+        // Tuy nhiên, bạn cần kiểm tra xem có biến thể nào đang dùng các giá trị này không
+        // trước khi xóa để tránh lỗi khóa ngoại (Foreign Key constraint).
+        // (Logic kiểm tra ràng buộc này phức tạp hơn, tạm thời bỏ qua)
+        attributeRepository.deleteById(attributeId);
+    }
 
-        return PageResponseDTO.<AttributeValueResponseDTO>builder()
-                .content(content)
-                .pageNo(valuePage.getNumber())
-                .pageSize(valuePage.getSize())
-                .totalElements(valuePage.getTotalElements())
-                .totalPages(valuePage.getTotalPages())
+    /**
+     * Thêm một giá trị mới vào thuộc tính (ví dụ: thêm "Cotton" vào "Chất liệu").
+     */
+    @Transactional
+    public AttributeValueResponseDTO addAttributeValue(Long attributeId, AttributeValueRequestDTO request) {
+        Attribute attribute = attributeRepository.findById(attributeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thuộc tính với ID: " + attributeId));
+
+        // (Bạn có thể thêm kiểm tra trùng giá trị trong cùng 1 thuộc tính)
+        AttributeValue newValue = AttributeValue.builder()
+                .attribute(attribute)
+                .value(request.getValue().trim()) // Trim khoảng trắng
+                .build();
+        AttributeValue savedValue = attributeValueRepository.save(newValue);
+
+        // Trả về DTO của giá trị vừa tạo
+        return AttributeValueResponseDTO.builder()
+                .id(savedValue.getId())
+                .value(savedValue.getValue())
                 .build();
     }
 
+    /**
+     * Xóa một giá trị thuộc tính.
+     */
+    @Transactional
     public void deleteAttributeValue(Long valueId) {
-        if (!valueRepository.existsById(valueId)) {
-            throw new ResourceNotFoundException("Không tìm thấy giá trị thuộc tính với ID: " + valueId);
-        }
-        valueRepository.deleteById(valueId);
-    }
+        AttributeValue valueToDelete = attributeValueRepository.findById(valueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy giá trị thuộc tính với ID: " + valueId));
 
-    // --- Private Mapper Methods ---
-    private AttributeResponseDTO convertToAttributeDTO(ProductVariantAttribute attribute) {
-        return AttributeResponseDTO.builder().id(attribute.getId()).name(attribute.getName()).build();
-    }
-
-    private AttributeValueResponseDTO convertToValueDTO(ProductVariantAttributeValue value) {
-        return AttributeValueResponseDTO.builder().id(value.getId()).value(value.getValue()).build();
+        // Tương tự deleteAttribute, bạn cần kiểm tra xem có biến thể nào
+        // đang sử dụng giá trị này không trước khi xóa.
+        // (Tạm thời bỏ qua logic kiểm tra ràng buộc)
+        attributeValueRepository.deleteById(valueId);
     }
 }

@@ -1,79 +1,79 @@
 package com.poly.bezbe.controller;
 
-import com.poly.bezbe.dto.request.attribute.AttributeRequestDTO;
-import com.poly.bezbe.dto.request.attribute.AttributeValueRequest;
-import com.poly.bezbe.dto.response.attribute.AttributeResponseDTO;
-import com.poly.bezbe.dto.response.attribute.AttributeValueResponseDTO;
-import com.poly.bezbe.dto.response.PageResponseDTO;
+
+import com.poly.bezbe.dto.request.product.AttributeRequestDTO;
+import com.poly.bezbe.dto.request.product.AttributeValueRequestDTO;
+import com.poly.bezbe.dto.response.ApiResponseDTO;
+import com.poly.bezbe.dto.response.product.AttributeResponseDTO;
+import com.poly.bezbe.dto.response.product.AttributeValueResponseDTO;
 import com.poly.bezbe.service.AttributeService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
-@RequestMapping("/api/v1/admin/attributes")
+@RequestMapping("/api/v1/attributes") // Base path cho Attribute
 @RequiredArgsConstructor
 public class AttributeController {
 
     private final AttributeService attributeService;
 
-    // --- API CHO THUỘC TÍNH (ATTRIBUTE) ---
-
     /**
-     * Lấy danh sách tất cả thuộc tính (có phân trang và sắp xếp).
-     * Ví dụ: /api/v1/admin/attributes?page=0&size=10&sort=name,asc
+     * Lấy tất cả thuộc tính và giá trị của chúng.
+     * React sẽ gọi API này khi component mount.
      */
     @GetMapping
-    public ResponseEntity<PageResponseDTO<AttributeResponseDTO>> getAllAttributes(@ParameterObject Pageable pageable) {
-        return ResponseEntity.ok(attributeService.getAllAttributes(pageable));
+    public ResponseEntity<ApiResponseDTO<List<AttributeResponseDTO>>> getAllAttributes() {
+        List<AttributeResponseDTO> attributes = attributeService.getAllAttributes();
+        return ResponseEntity.ok(ApiResponseDTO.success(attributes, "Lấy danh sách thuộc tính thành công"));
     }
-
-    @PostMapping
-    public ResponseEntity<AttributeResponseDTO> createAttribute(@RequestBody AttributeRequestDTO request) {
-        return ResponseEntity.ok(attributeService.createAttribute(request));
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<AttributeResponseDTO> getAttributeById(@PathVariable Long id) {
-        return ResponseEntity.ok(attributeService.getAttributeById(id));
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<AttributeResponseDTO> updateAttribute(@PathVariable Long id, @RequestBody AttributeRequestDTO request) {
-        return ResponseEntity.ok(attributeService.updateAttribute(id, request));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<String> deleteAttribute(@PathVariable Long id) {
-        attributeService.deleteAttribute(id);
-        return ResponseEntity.ok("Xóa thuộc tính thành công!");
-    }
-
-    // --- API CHO GIÁ TRỊ THUỘC TÍNH (ATTRIBUTE VALUE) ---
 
     /**
-     * Lấy danh sách giá trị của một thuộc tính (có phân trang và sắp xếp).
-     * Ví dụ: /api/v1/admin/attributes/1/values?page=0&size=5&sort=value,desc
+     * Tạo một thuộc tính mới.
+     * React gọi khi nhấn nút "Tạo" trong form thêm thuộc tính.
      */
-    @GetMapping("/{attributeId}/values")
-    public ResponseEntity<PageResponseDTO<AttributeValueResponseDTO>> getValuesForAttribute(
-            @PathVariable Long attributeId,
-            @ParameterObject Pageable pageable) {
-        return ResponseEntity.ok(attributeService.getValuesForAttribute(attributeId, pageable));
+    @PostMapping
+    public ResponseEntity<ApiResponseDTO<AttributeResponseDTO>> createAttribute(
+            @Valid @RequestBody AttributeRequestDTO request) {
+        AttributeResponseDTO newAttribute = attributeService.createAttribute(request);
+        // Trả về CREATED (201) thay vì OK (200) cho thao tác tạo mới
+        return new ResponseEntity<>(ApiResponseDTO.success(newAttribute, "Tạo thuộc tính thành công"), HttpStatus.CREATED);
     }
 
+    /**
+     * Xóa một thuộc tính (ví dụ: xóa "Màu sắc").
+     * React gọi khi nhấn nút thùng rác cạnh tên thuộc tính.
+     */
+    @DeleteMapping("/{attributeId}")
+    public ResponseEntity<ApiResponseDTO<Object>> deleteAttribute(@PathVariable Long attributeId) {
+        attributeService.deleteAttribute(attributeId);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa thuộc tính thành công"));
+    }
+
+    /**
+     * Thêm một giá trị mới vào thuộc tính (ví dụ: thêm "Xanh" vào "Màu sắc").
+     * React gọi khi nhấn nút "Thêm" trong form thêm giá trị.
+     */
     @PostMapping("/{attributeId}/values")
-    public ResponseEntity<AttributeValueResponseDTO> createAttributeValue(
+    public ResponseEntity<ApiResponseDTO<AttributeValueResponseDTO>> addAttributeValue(
             @PathVariable Long attributeId,
-            @RequestBody AttributeValueRequest request) {
-        return ResponseEntity.ok(attributeService.createAttributeValue(attributeId, request));
+            @Valid @RequestBody AttributeValueRequestDTO request) {
+        AttributeValueResponseDTO newValue = attributeService.addAttributeValue(attributeId, request);
+        return new ResponseEntity<>(ApiResponseDTO.success(newValue, "Thêm giá trị thành công"), HttpStatus.CREATED);
     }
 
+    /**
+     * Xóa một giá trị thuộc tính (ví dụ: xóa "Xanh").
+     * React gọi khi nhấn nút "X" cạnh một giá trị.
+     * Lưu ý: API endpoint là "/values/{valueId}" để tránh trùng với deleteAttribute.
+     */
     @DeleteMapping("/values/{valueId}")
-    public ResponseEntity<String> deleteAttributeValue(@PathVariable Long valueId) {
+    public ResponseEntity<ApiResponseDTO<Object>> deleteAttributeValue(@PathVariable Long valueId) {
         attributeService.deleteAttributeValue(valueId);
-        return ResponseEntity.ok("Xóa giá trị thuộc tính thành công!");
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa giá trị thành công"));
     }
 }

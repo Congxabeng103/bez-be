@@ -1,17 +1,51 @@
 package com.poly.bezbe.exception;
 
+
+import com.poly.bezbe.dto.response.ApiResponseDTO;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
-@ControllerAdvice // Đánh dấu lớp này sẽ xử lý exception cho toàn bộ ứng dụng
+import java.util.stream.Collectors;
+
+@ControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(ResourceNotFoundException.class)
-    public ResponseEntity<String> handleResourceNotFoundException(ResourceNotFoundException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponseDTO<Object>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return new ResponseEntity<>(ApiResponseDTO.error(message), HttpStatus.BAD_REQUEST);
     }
 
-    // Bạn có thể thêm các trình xử lý cho các loại exception khác ở đây
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponseDTO<Object>> handleBadCredentialsException(BadCredentialsException ex) {
+        return new ResponseEntity<>(ApiResponseDTO.error("Email hoặc mật khẩu không chính xác."), HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ResponseEntity<ApiResponseDTO<Object>> handleDuplicateResourceException(DuplicateResourceException ex) {
+        return new ResponseEntity<>(ApiResponseDTO.error(ex.getMessage()), HttpStatus.CONFLICT); // 409
+    }
+
+    @ExceptionHandler({ResourceNotFoundException.class, UsernameNotFoundException.class})
+    public ResponseEntity<ApiResponseDTO<Object>> handleResourceNotFoundException(RuntimeException ex) {
+        return new ResponseEntity<>(ApiResponseDTO.error(ex.getMessage()), HttpStatus.NOT_FOUND); // 404
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponseDTO<Object>> handleIllegalStateException(IllegalStateException ex) {
+        return new ResponseEntity<>(ApiResponseDTO.error(ex.getMessage()), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponseDTO<Object>> handleUncaughtException(Exception ex) {
+        ex.printStackTrace(); // In ra log để debug
+        return new ResponseEntity<>(ApiResponseDTO.error("Có lỗi không mong muốn xảy ra từ hệ thống."), HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

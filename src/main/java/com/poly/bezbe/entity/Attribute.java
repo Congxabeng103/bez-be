@@ -4,13 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "product_variant_attributes")
+@Table(name = "attributes")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class ProductVariantAttribute {
+public class Attribute {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "name", nullable = false, unique = true, columnDefinition = "NVARCHAR(100)")
-    private String name; // Ví dụ: "Màu sắc", "Kích cỡ"
+    private String name;
 }

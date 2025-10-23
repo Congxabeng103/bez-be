@@ -4,17 +4,17 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "product_variant_attribute_values")
+@Table(name = "attribute_values")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
-public class ProductVariantAttributeValue {
+public class AttributeValue {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attribute_id", nullable = false)
-    private ProductVariantAttribute attribute;
+    private Attribute attribute;
 
     @Column(name = "value", nullable = false, columnDefinition = "NVARCHAR(100)")
-    private String value; // Ví dụ: "Đỏ", "XL"
+    private String value;
 }

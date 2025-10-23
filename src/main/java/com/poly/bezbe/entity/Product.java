@@ -54,6 +54,8 @@ public class Product {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+
+
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductVariant> variants;
 
@@ -62,4 +64,5 @@ public class Product {
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductReview> reviews;
+
 }

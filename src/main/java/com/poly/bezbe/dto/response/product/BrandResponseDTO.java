@@ -1,0 +1,13 @@
+package com.poly.bezbe.dto.response.product;
+
+
+import lombok.Builder;
+import lombok.Data;
+
+@Data
+@Builder
+public class BrandResponseDTO {
+    private Long id;
+    private String name;
+    // Thêm các trường khác của Brand nếu cần hiển thị
+}

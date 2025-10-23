@@ -11,6 +11,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -19,25 +24,40 @@ public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
 
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(req -> req
-                        // Khu vực công khai: ai cũng vào được (bao gồm cả callback của OAuth2)
-                        .requestMatchers("/api/v1/auth/**", "/login/oauth2/**").permitAll()
-                        // ✨ QUY TẮC BẢO VỆ: Yêu cầu quyền ADMIN cho tất cả API trong khu vực /admin/**
+                .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
+
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/v1/users/**").authenticated()
                         .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
-                        // Mọi khu vực khác: phải đăng nhập
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
                 .authenticationProvider(authenticationProvider)
+
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
-                // ✨ Kích hoạt luồng đăng nhập OAuth2 với các cấu hình mặc định.
-                // Spring sẽ tự động tạo endpoint /oauth2/authorization/google
-                //.oauth2Login(Customizer.withDefaults());
 
         return http.build();
+    }
+    // ✅ Cấu hình CORS để frontend có thể gọi API
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:3000")); // Cho phép React frontend
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true); // Cho phép gửi credentials (JWT token)
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 }

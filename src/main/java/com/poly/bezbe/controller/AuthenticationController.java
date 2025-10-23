@@ -1,46 +1,48 @@
 package com.poly.bezbe.controller;
 
-
-import com.poly.bezbe.dto.request.auth.AuthenticationRequestDTO;
-import com.poly.bezbe.dto.request.auth.ForgotPasswordRequestDTO;
-import com.poly.bezbe.dto.request.auth.RegisterRequestDTO;
-import com.poly.bezbe.dto.request.auth.ResetPasswordRequestDTO;
+import com.poly.bezbe.dto.request.auth.*;
+import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.auth.AuthenticationResponseDTO;
 import com.poly.bezbe.service.AuthenticationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/auth") // Các API công khai, không cần đăng nhập
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthenticationController {
     private final AuthenticationService service;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody RegisterRequestDTO request) {
-        return ResponseEntity.ok(service.register(request));
+    public ResponseEntity<ApiResponseDTO<Object>> register(@Valid @RequestBody RegisterRequestDTO request) {
+        String message = service.register(request);
+        return new ResponseEntity<>(ApiResponseDTO.success(null, message), HttpStatus.CREATED);
     }
 
     @GetMapping("/activate/{token}")
-    public ResponseEntity<String> activateAccount(@PathVariable String token) {
-        return ResponseEntity.ok(service.activateAccount(token));
+    public ResponseEntity<ApiResponseDTO<Object>> activateAccount(@PathVariable String token) {
+        String message = service.activateAccount(token);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, message));
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthenticationResponseDTO> login(@RequestBody AuthenticationRequestDTO request) {
-        return ResponseEntity.ok(service.authenticate(request));
+    public ResponseEntity<ApiResponseDTO<AuthenticationResponseDTO>> login(@Valid @RequestBody AuthenticationRequestDTO request) {
+        AuthenticationResponseDTO data = service.authenticate(request);
+        return ResponseEntity.ok(ApiResponseDTO.success(data, "Đăng nhập thành công."));
     }
 
-
-
     @PostMapping("/forgot-password")
-    public ResponseEntity<String> forgotPassword(@RequestBody ForgotPasswordRequestDTO request) {
-        return ResponseEntity.ok(service.forgotPassword(request));
+    public ResponseEntity<ApiResponseDTO<Object>> forgotPassword(@Valid @RequestBody ForgotPasswordRequestDTO request) {
+        String message = service.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, message));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequestDTO request) {
-        return ResponseEntity.ok(service.resetPassword(request));
+    public ResponseEntity<ApiResponseDTO<Object>> resetPassword(@Valid @RequestBody ResetPasswordRequestDTO request) {
+        String message = service.resetPassword(request);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, message));
     }
 }
