@@ -1,5 +1,4 @@
-package com.poly.bezbe.controller;
-
+package com.poly.bezbe.controller; // (Package của bạn)
 
 import com.poly.bezbe.dto.request.CouponRequestDTO;
 import com.poly.bezbe.dto.response.ApiResponseDTO;
@@ -16,24 +15,26 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/coupons") // Endpoint riêng cho Coupon
+@RequestMapping("/api/v1/coupons")
 @RequiredArgsConstructor
 public class CouponController {
 
     private final CouponService couponService;
 
+    // SỬA HÀM NÀY (Thêm @RequestParam 'status')
     @GetMapping
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<CouponResponseDTO>>> getAllCoupons(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String search,
-            @RequestParam(defaultValue = "endDate,desc") String sort
+            @RequestParam(defaultValue = "endDate,desc") String sort,
+            @RequestParam(defaultValue = "ACTIVE") String status // <-- THÊM DÒNG NÀY
     ) {
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
 
-        PageResponseDTO<CouponResponseDTO> couponPage = couponService.getAllCoupons(pageable, search);
+        PageResponseDTO<CouponResponseDTO> couponPage = couponService.getAllCoupons(pageable, search, status);
         return ResponseEntity.ok(ApiResponseDTO.success(couponPage, "Lấy danh sách coupon thành công"));
     }
 
@@ -52,9 +53,10 @@ public class CouponController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedCoupon, "Cập nhật coupon thành công"));
     }
 
+    // Sửa: Gọi Soft Delete
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponseDTO<Object>> deleteCoupon(@PathVariable Long id) {
         couponService.deleteCoupon(id);
-        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa coupon thành công"));
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động coupon thành công"));
     }
 }

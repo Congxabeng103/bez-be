@@ -22,16 +22,17 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining("; "));
         return new ResponseEntity<>(ApiResponseDTO.error(message), HttpStatus.BAD_REQUEST);
     }
-
+    // Sửa dòng này:
+    @ExceptionHandler(BusinessRuleException.class) // <-- Chỉ cần 1 lỗi
+    public ResponseEntity<ApiResponseDTO<Object>> handleConflictException(BusinessRuleException ex) { // <-- Sửa kiểu
+        return new ResponseEntity<>(ApiResponseDTO.error(ex.getMessage()), HttpStatus.CONFLICT); // 409
+    }
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponseDTO<Object>> handleBadCredentialsException(BadCredentialsException ex) {
         return new ResponseEntity<>(ApiResponseDTO.error("Email hoặc mật khẩu không chính xác."), HttpStatus.UNAUTHORIZED);
     }
 
-    @ExceptionHandler(DuplicateResourceException.class)
-    public ResponseEntity<ApiResponseDTO<Object>> handleDuplicateResourceException(DuplicateResourceException ex) {
-        return new ResponseEntity<>(ApiResponseDTO.error(ex.getMessage()), HttpStatus.CONFLICT); // 409
-    }
+
 
     @ExceptionHandler({ResourceNotFoundException.class, UsernameNotFoundException.class})
     public ResponseEntity<ApiResponseDTO<Object>> handleResourceNotFoundException(RuntimeException ex) {

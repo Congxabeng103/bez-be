@@ -46,6 +46,9 @@ public class Product {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(name = "active", nullable = false, columnDefinition = "bit default 1")
+    private boolean active = true;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;

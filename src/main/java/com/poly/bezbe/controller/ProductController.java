@@ -1,12 +1,12 @@
 package com.poly.bezbe.controller;
 
-
 import com.poly.bezbe.dto.request.product.ProductRequestDTO;
 import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.dto.response.product.ProductBriefDTO;
 import com.poly.bezbe.dto.response.product.ProductResponseDTO;
 import com.poly.bezbe.service.ProductService;
+import com.poly.bezbe.service.PromotionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -17,28 +17,26 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/products") // Đặt base path cho tất cả API sản phẩm
+@RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
 public class ProductController {
 
     private final ProductService productService;
 
+    // --- SỬA HÀM NÀY (Thêm 'status') ---
     @GetMapping
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ProductResponseDTO>>> getAllProducts(
-            @RequestParam(defaultValue = "0") int page, // Trang (Spring bắt đầu từ 0)
-            @RequestParam(defaultValue = "5") int size, // Kích thước trang
-            @RequestParam(required = false) String search, // Từ khóa tìm kiếm
-            @RequestParam(defaultValue = "createdAt,desc") String sort // Sắp xếp
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(defaultValue = "ACTIVE") String status // <-- THÊM DÒNG NÀY
     ) {
-        // Tách chuỗi sort (ví dụ: "createdAt,desc")
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
 
-        PageResponseDTO<ProductResponseDTO> productPage = productService.getAllProducts(pageable, search);
-
-        // Trả về theo cấu trúc ApiResponseDTO
+        PageResponseDTO<ProductResponseDTO> productPage = productService.getAllProducts(pageable, search, status);
         return ResponseEntity.ok(ApiResponseDTO.success(productPage, "Lấy danh sách sản phẩm thành công"));
     }
 
@@ -57,26 +55,29 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedProduct, "Cập nhật sản phẩm thành công"));
     }
 
+    // --- SỬA HÀM NÀY (Để gọi Soft Delete) ---
     @DeleteMapping("/{productId}")
     public ResponseEntity<ApiResponseDTO<Object>> deleteProduct(@PathVariable Long productId) {
-        productService.deleteProduct(productId);
-        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa sản phẩm thành công"));
+        productService.deleteProduct(productId); // Gọi hàm soft delete
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động sản phẩm thành công")); // Đổi message
     }
+
     @GetMapping("/brief")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ProductBriefDTO>>> getProductBriefList(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size, // Tăng size cho dropdown
+            @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String search
     ) {
-        // Sắp xếp theo tên để dễ tìm trong dropdown
         Pageable pageable = PageRequest.of(page, size, Sort.by("name"));
-        PageResponseDTO<ProductBriefDTO> productPage = productService.getProductBriefList(pageable, search); // Gọi hàm mới trong Service
+        // Hàm getProductBriefList đã được sửa ở Service để chỉ lấy Active
+        PageResponseDTO<ProductBriefDTO> productPage = productService.getProductBriefList(pageable, search);
         return ResponseEntity.ok(ApiResponseDTO.success(productPage, "Lấy danh sách tóm tắt sản phẩm thành công"));
     }
-    // (Bạn sẽ cần API để lấy Category và Brand cho Form, ví dụ:)
-    // @GetMapping("/categories")
-    // public ResponseEntity<ApiResponseDTO<List<CategoryResponseDTO>>> getAllCategories() { ... }
 
-    // @GetMapping("/brands")
-    // public ResponseEntity<ApiResponseDTO<List<BrandResponseDTO>>> getAllBrands() { ... }
+    // THÊM ENDPOINT MỚI
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteProduct(@PathVariable Long id) {
+        productService.permanentDeleteProduct(id);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Đã xóa vĩnh viễn sản phẩm."));
+    }
 }

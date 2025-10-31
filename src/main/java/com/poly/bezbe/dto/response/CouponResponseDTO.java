@@ -1,6 +1,4 @@
-package com.poly.bezbe.dto.response;
-
-// File: dto/response/CouponResponseDTO.java
+package com.poly.bezbe.dto.response; // (Hoặc package DTO của bạn)
 
 import lombok.Builder;
 import lombok.Data;
@@ -14,14 +12,13 @@ public class CouponResponseDTO {
     private Long id;
     private String code;
     private String description;
-    private BigDecimal discountValue; // Giá trị giảm (có thể là % hoặc số tiền, tùy logic bạn định nghĩa)
-    private BigDecimal maxDiscountAmount; // Giảm tối đa (nếu discountValue là %)
-    private BigDecimal minOrderAmount; // Đơn tối thiểu
-    private int usageLimit; // Lượt dùng tối đa
-    private int usedCount; // Đã dùng
+    private BigDecimal discountValue;
+    private BigDecimal maxDiscountAmount;
+    private BigDecimal minOrderAmount;
+    private Integer usageLimit; // (0 là không giới hạn)
+    private Integer usedCount;
     private LocalDate startDate;
     private LocalDate endDate;
-    private boolean active;
+    private boolean active; // Trạng thái
     private LocalDateTime createdAt;
 }
-

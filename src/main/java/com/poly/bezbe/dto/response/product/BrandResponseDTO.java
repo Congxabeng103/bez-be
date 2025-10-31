@@ -9,5 +9,8 @@ import lombok.Data;
 public class BrandResponseDTO {
     private Long id;
     private String name;
-    // Thêm các trường khác của Brand nếu cần hiển thị
+    private String description;
+    private String imageUrl; // <-- THÊM DÒNG NÀY
+    private boolean active;
+    private long productCount; // <-- THÊM DÒNG NÀY
 }

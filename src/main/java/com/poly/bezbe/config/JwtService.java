@@ -1,5 +1,6 @@
 package com.poly.bezbe.config;
 
+import com.poly.bezbe.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -12,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -36,6 +38,20 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
+        // Kiểm tra nếu userDetails là User entity của bạn
+        if (userDetails instanceof User) {
+            User user = (User) userDetails;
+
+            // Tạo 'claims' (thông tin thêm)
+            Map<String, Object> extraClaims = new HashMap<>();
+
+            // Thêm 'roles' vào token (Middleware của bạn (File 168) cần mảng)
+            extraClaims.put("roles", List.of(user.getRole().name()));
+
+            return buildToken(extraClaims, userDetails, jwtExpiration);
+        }
+
+        // (Dự phòng nếu không phải User entity)
         return buildToken(new HashMap<>(), userDetails, jwtExpiration);
     }
 

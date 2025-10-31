@@ -40,6 +40,10 @@ public class ProductVariant {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "bit default 1")
+    private boolean active = true;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;

@@ -1,32 +1,51 @@
-// File: src/main/java/com/poly/bezbe/service/UserService.java
 package com.poly.bezbe.service;
 
+import com.poly.bezbe.dto.request.EmployeeRequestDTO;
+import com.poly.bezbe.dto.request.UserRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdatePasswordRequestDTO;
-import com.poly.bezbe.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import com.poly.bezbe.entity.User;
+import com.poly.bezbe.dto.request.auth.UpdateProfileRequestDTO;
+import com.poly.bezbe.dto.response.PageResponseDTO;
+import com.poly.bezbe.dto.response.UserResponseDTO;
+import org.springframework.data.domain.Pageable;
 
-@Service
-@RequiredArgsConstructor
-public class UserService {
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
+/**
+ * Interface định nghĩa các nghiệp vụ liên quan đến quản lý người dùng
+ * (Khách hàng, Nhân viên, và Profile cá nhân).
+ */
+public interface UserService {
 
-    public String updatePassword(UpdatePasswordRequestDTO request) {
-        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
-        User currentUser = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng. Lỗi hệ thống."));
+    /**
+     * Lấy danh sách Khách hàng (ROLE_USER) có phân trang và lọc.
+     */
+    PageResponseDTO<UserResponseDTO> getCustomers(Pageable pageable, String searchTerm, String status);
 
-        if (!passwordEncoder.matches(request.getCurrentPassword(), currentUser.getPassword())) {
-            throw new BadCredentialsException("Mật khẩu cũ không chính xác.");
-        }
-        currentUser.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(currentUser);
-        return "Đổi mật khẩu thành công!";
-    }
+    /**
+     * Lấy danh sách Nhân viên (ROLE_ADMIN, ROLE_STAFF) có phân trang và lọc.
+     */
+    PageResponseDTO<UserResponseDTO> getEmployees(Pageable pageable, String searchTerm, String status);
 
+    /**
+     * (Admin) Cập nhật thông tin của một User (thường là nhân viên).
+     */
+    UserResponseDTO updateUser(Long id, UserRequestDTO request);
+
+    /**
+     * (User) Tự cập nhật thông tin profile cá nhân của mình.
+     */
+    UserResponseDTO updateProfile(String userEmail, UpdateProfileRequestDTO request);
+
+    /**
+     * (Admin) Xóa mềm (soft delete) một User (Khách hàng hoặc Nhân viên).
+     */
+    void deleteUser(Long id);
+
+    /**
+     * (User) Tự đổi mật khẩu của mình.
+     */
+    String updatePassword(UpdatePasswordRequestDTO request);
+
+    /**
+     * (Admin) Tạo một tài khoản Nhân viên mới.
+     */
+    UserResponseDTO createEmployee(EmployeeRequestDTO request);
 }

@@ -8,9 +8,9 @@ import lombok.*;
 @Data @Builder @AllArgsConstructor @NoArgsConstructor
 public class RegisterRequestDTO {
     @NotEmpty(message = "Tên không được để trống")
-    private String firstName;
+    private String firstName; // vd: "Công"
 
-    private String lastName; // Có thể không bắt buộc
+    private String lastName; // vd: "Đỗ Thành"
 
     @Email(message = "Email không đúng định dạng")
     @NotEmpty(message = "Email không được để trống")
