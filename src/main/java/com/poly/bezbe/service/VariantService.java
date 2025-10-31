@@ -57,4 +57,5 @@ public interface VariantService {
      * @param variantId ID của biến thể cần xóa.
      */
     void permanentDeleteVariant(Long variantId);
+    VariantResponseDTO findVariantByAttributes(Long productId, List<Long> valueIds);
 }

@@ -21,10 +21,10 @@ public class Coupon {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "code", nullable = false, unique = true)
+    @Column(name = "code", nullable = false, unique = true, columnDefinition = "NVARCHAR(100)") // <-- SỬA
     private String code;
 
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "NVARCHAR(1000)") // <-- SỬA
     private String description;
 
     @Column(name = "discount_value", nullable = false, precision = 10, scale = 2)

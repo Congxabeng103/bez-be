@@ -10,13 +10,13 @@ import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
-@Table(name = "product_variants")
+@Table(name = "variants")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ProductVariant {
+public class Variant {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -25,10 +25,10 @@ public class ProductVariant {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "sku", unique = true, length = 50)
+    @Column(name = "sku", unique = true, columnDefinition = "NVARCHAR(50)") // <-- SỬA
     private String sku;
 
-    @Column(name = "name")
+    @Column(name = "name", columnDefinition = "NVARCHAR(255)") // <-- SỬA
     private String name;
 
     @Column(name = "price", precision = 10, scale = 2)
@@ -37,7 +37,7 @@ public class ProductVariant {
     @Column(name = "stock_quantity")
     private Integer stockQuantity;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", columnDefinition = "NVARCHAR(512)") // <-- SỬA
     private String imageUrl;
 
     @Builder.Default

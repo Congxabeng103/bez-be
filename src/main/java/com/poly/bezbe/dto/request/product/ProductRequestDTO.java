@@ -9,9 +9,6 @@ public class ProductRequestDTO {
     @NotEmpty(message = "Tên sản phẩm không được để trống")
     private String name;
     private String description;
-    @NotNull(message = "Giá không được để trống")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Giá phải lớn hơn 0")
-    private BigDecimal price;
     private String imageUrl;
     private Long categoryId;
     private Long brandId;

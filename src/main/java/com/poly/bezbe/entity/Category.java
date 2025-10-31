@@ -3,11 +3,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;
 
-
-import jakarta.persistence.*;
-import lombok.*;
-import java.util.List; // Import nếu bạn cần liên kết ngược lại
-
 @Entity
 @Table(name = "categories")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -20,15 +15,14 @@ public class Category {
     private String name;
 
     @Column(name = "description", columnDefinition = "NVARCHAR(1000)")
-    private String description; // (Tùy chọn) Thêm mô tả
+    private String description;
 
-    @Column(name = "image_url", length = 512) // Thêm cột này
+    @Column(name = "image_url", columnDefinition = "NVARCHAR(512)") // <-- SỬA
     private String imageUrl;
 
     @Column(name = "active", nullable = false)
-    private boolean active = true; // <-- THÊM TRƯỜNG NÀY (Mặc định là true)
+    private boolean active = true;
 
-    // (Tùy chọn: Liên kết ngược lại với Product)
-     @OneToMany(mappedBy = "category")
-     private List<Product> products;
+    @OneToMany(mappedBy = "category")
+    private List<Product> products;
 }

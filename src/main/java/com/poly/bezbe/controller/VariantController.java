@@ -65,4 +65,12 @@ public class VariantController {
         variantService.permanentDeleteVariant(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Đã xóa vĩnh viễn biến thể."));
     }
+    @GetMapping("/find")
+    public ResponseEntity<ApiResponseDTO<VariantResponseDTO>> findVariantByAttributes(
+            @RequestParam Long productId,
+            @RequestParam List<Long> valueIds // (Spring Boot tự động map "1,2,3" thành List)
+    ) {
+        VariantResponseDTO variant = variantService.findVariantByAttributes(productId, valueIds);
+        return ResponseEntity.ok(ApiResponseDTO.success(variant, "Tìm thấy biến thể"));
+    }
 }

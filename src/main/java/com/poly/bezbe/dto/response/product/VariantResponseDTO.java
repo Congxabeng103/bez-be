@@ -20,4 +20,8 @@ public class VariantResponseDTO {
     // Map<Tên Thuộc tính, Giá trị>, vd: {"Màu sắc": "Đỏ", "Size": "XL"}
     private Map<String, String> attributes;
     private long orderCount; // <-- THÊM DÒNG NÀY
+    // --- THÊM 2 TRƯỜNG NÀY ---
+    private BigDecimal salePrice; // Giá sau khi giảm (nếu có)
+    private Boolean isPromotionStillValid; // (Trạng thái của KM)
+    // --- KẾT THÚC THÊM ---
 }

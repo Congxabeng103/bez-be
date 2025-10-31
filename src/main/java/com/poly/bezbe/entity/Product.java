@@ -33,17 +33,17 @@ public class Product {
     @JoinColumn(name = "promotion_id")
     private Promotion promotion;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, columnDefinition = "NVARCHAR(255)") // <-- SỬA
     private String name;
 
     @Lob
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "NVARCHAR(MAX)") // <-- Thêm rõ ràng
     private String description;
 
-    @Column(name = "price", nullable = false, precision = 10, scale = 2)
+    @Column(name = "price", nullable = true, precision = 10, scale = 2)
     private BigDecimal price;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", columnDefinition = "NVARCHAR(512)") // <-- SỬA
     private String imageUrl;
 
     @Column(name = "active", nullable = false, columnDefinition = "bit default 1")
@@ -57,10 +57,8 @@ public class Product {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-
-
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductVariant> variants;
+    private List<Variant> variants;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images;

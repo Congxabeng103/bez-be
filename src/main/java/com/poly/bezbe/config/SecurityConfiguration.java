@@ -1,24 +1,10 @@
 package com.poly.bezbe.config;
 
+// --- Imports (Giữ nguyên) ---
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.config.Customizer;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-
-// --- Imports ---
-import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod; // <-- Thêm import này
+import org.springframework.http.HttpMethod; // (Quan trọng)
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -38,65 +24,81 @@ public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtAuthFilter;
     private final AuthenticationProvider authenticationProvider;
 
-    // 1. TẠO BEAN CORS (Code của bạn đã có, giữ nguyên)
+    // (Bean CorsConfigurationSource của bạn giữ nguyên)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000")); // Cho phép React frontend
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Các phương thức cho phép
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type")); // Các header cho phép
-        configuration.setAllowCredentials(true); // Cho phép gửi cookie/token
-        configuration.setMaxAge(3600L); // Thời gian cache pre-flight request
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration); // Áp dụng cho tất cả API
+        source.registerCorsConfiguration("/api/**", configuration);
         return source;
     }
 
-    // 2. CẤU HÌNH SECURITY FILTER CHAIN (Đã sửa)
+    // --- SỬA TOÀN BỘ HÀM NÀY (Sắp xếp lại thứ tự) ---
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Tắt CSRF (vì dùng JWT)
                 .csrf(csrf -> csrf.disable())
-
-                // --- SỬA 1: Áp dụng Bean CORS đã tạo ---
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
                 .authorizeHttpRequests(auth -> auth
 
-                        // 1. API Công khai (Không cần đăng nhập)
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Đăng nhập, Đăng ký, Quên MK...
+                        // 1. API ADMIN (Yêu cầu ADMIN)
+                        // (Chỉ ADMIN mới được POST, PUT, DELETE)
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
+                                "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
+                                "/api/v1/coupons/**", "/api/v1/users/**"
+                        ).hasAuthority("ADMIN")
 
-                        // 2. Phân quyền XEM (GET) cho Nhân viên (STAFF + ADMIN)
-                        // Cho phép cả STAFF và ADMIN xem (GET) tất cả dữ liệu
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
+                                "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
+                                "/api/v1/coupons/**", "/api/v1/users/**"
+                        ).hasAuthority("ADMIN")
+
+                        .requestMatchers(HttpMethod.DELETE,
+                                "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
+                                "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
+                                "/api/v1/coupons/**", "/api/v1/users/**"
+                        ).hasAuthority("ADMIN")
+
+                        // 2. API NHÂN VIÊN (STAFF + ADMIN)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/products/**",     // Xem sản phẩm
-                                "/api/v1/categories/**", // Xem danh mục (kể cả /all-brief)
-                                "/api/v1/brands/**",     // Xem thương hiệu (kể cả /all-brief)
-                                "/api/v1/attributes/**", // Xem thuộc tính
-                                "/api/v1/variants/**",   // Xem biến thể
-                                "/api/v1/orders/**",     // Xem đơn hàng
-                                "/api/v1/promotions/**", // Xem khuyến mãi (kể cả /brief) <-- SỬA LỖI CỦA BẠN
-                                "/api/v1/coupons/**",    // Xem coupon
-                                "/api/v1/users/customers", // Xem khách hàng
-                                "/api/v1/users/employees"  // Xem nhân viên
+                                "/api/v1/orders/**",        // Xem đơn hàng
+                                "/api/v1/users/customers",  // Xem khách hàng
+                                "/api/v1/users/employees"   // Xem nhân viên
                         ).hasAnyAuthority("ADMIN", "STAFF")
 
-                        // 3. Phân quyền SỬA (PUT) cho Nhân viên (STAFF + ADMIN)
-                        // (Ví dụ: Cho phép STAFF sửa đơn hàng)
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/orders/**").hasAnyAuthority("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/v1/orders/**" // Cập nhật đơn hàng
+                        ).hasAnyAuthority("ADMIN", "STAFF")
 
-                        // 4. Phân quyền Quản trị (ADMIN-only)
-                        // Chỉ ADMIN mới được làm mọi thứ còn lại (POST, PUT, DELETE)
-                        .requestMatchers("/api/v1/**").hasAuthority("ADMIN")
+                        // (API GET riêng của Admin)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/attributes/**", "/api/v1/promotions/**", "/api/v1/coupons/**"
+                        ).hasAuthority("ADMIN")
 
-                        // 5. Mọi request còn lại (nếu có) phải đăng nhập
+
+                        // 3. API CÔNG KHAI (PUBLIC - Cho phép tất cả)
+                        .requestMatchers("/api/v1/auth/**").permitAll() // Đăng nhập, Đăng ký...
+
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/products",          // Lấy list sản phẩm (Trang Products)
+                                "/api/v1/products/detail/**",// Lấy chi tiết sản phẩm (Trang Detail)
+                                "/api/v1/categories/all-brief", // Lấy list category cho filter
+                                "/api/v1/brands/all-brief",     // Lấy list brand cho filter
+                                "/api/v1/variants/find"      // Lấy variant khi user chọn
+                        ).permitAll()
+                        // --- KẾT THÚC SỬA ---
+
+                        // 4. Mọi request còn lại (vd: /profile) phải đăng nhập
                         .anyRequest().authenticated()
                 )
-                // --- KẾT THÚC SỬA 2 ---
-
-                // Cấu hình stateless (không dùng session)
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )

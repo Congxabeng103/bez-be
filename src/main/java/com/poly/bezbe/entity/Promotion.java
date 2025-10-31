@@ -21,10 +21,10 @@ public class Promotion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, columnDefinition = "NVARCHAR(255)") // <-- SỬA
     private String name;
 
-    @Column(name = "description")
+    @Column(name = "description", columnDefinition = "NVARCHAR(1000)") // <-- SỬA
     private String description;
 
     @Column(name = "discount_value", nullable = false, precision = 10, scale = 2)

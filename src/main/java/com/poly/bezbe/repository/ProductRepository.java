@@ -14,17 +14,35 @@ import java.util.List;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    // 1. Dùng cho getAllProducts (Bảng Quản lý Sản phẩm, lọc theo Status)
-    @EntityGraph(attributePaths = {"promotion", "category", "brand"}) // Tải EAGER các liên kết
-    @Query("SELECT p FROM Product p WHERE " +
-            "(:searchTerm IS NULL OR LOWER(p.name) LIKE LOWER(concat('%', :searchTerm, '%'))) " +
-            "AND (:status = 'ALL' OR p.active = :active)")
-    Page<Product> findBySearchAndStatus(
+    // --- SỬA HÀM NÀY ---
+    // Xóa hàm findBySearchAndStatus cũ và thay bằng hàm này:
+    @EntityGraph(attributePaths = {"promotion", "category", "brand"})
+    @Query("SELECT p FROM Product p LEFT JOIN p.category c LEFT JOIN p.brand b " + // Dùng LEFT JOIN
+            "WHERE " +
+            // 1. Lọc Status (active/inactive/all)
+            "(:status = 'ALL' OR p.active = :activeStatus) " +
+
+            // 2. Lọc Search
+            "AND (:searchTerm IS NULL OR LOWER(p.name) LIKE LOWER(concat('%', :searchTerm, '%'))) " +
+
+            // 3. Lọc Category Name
+            "AND (:categoryName IS NULL OR c.name = :categoryName) " +
+
+            // 4. Lọc Min Price
+            "AND (:minPrice IS NULL OR p.price >= :minPrice) " +
+
+            // 5. Lọc Max Price
+            "AND (:maxPrice IS NULL OR p.price <= :maxPrice)")
+    Page<Product> searchAndFilterProducts(
             @Param("searchTerm") String searchTerm,
             @Param("status") String status,
-            @Param("active") boolean active,
+            @Param("activeStatus") boolean activeStatus, // Biến phụ trợ cho status
+            @Param("categoryName") String categoryName,
+            @Param("minPrice") Double minPrice,
+            @Param("maxPrice") Double maxPrice,
             Pageable pageable
     );
+    // --- KẾT THÚC SỬA ĐỔI ---
 
     // 2. Dùng cho getProductBriefList (Chỉ lấy Active, TÌM KIẾM)
     @EntityGraph(attributePaths = {"variants"})
@@ -43,4 +61,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // (Lát nữa bạn cũng sẽ cần 2 hàm tương tự cho Brand)
      long countByBrandId(Long brandId);
      List<Product> findAllByBrandIdAndActive(Long brandId, boolean active);
+    List<Product> findByCategoryIdAndIdNotAndActiveTrue(Long categoryId, Long productId, Pageable pageable);
 }

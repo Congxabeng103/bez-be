@@ -3,6 +3,7 @@ package com.poly.bezbe.service;
 import com.poly.bezbe.dto.request.product.ProductRequestDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.dto.response.product.ProductBriefDTO;
+import com.poly.bezbe.dto.response.product.ProductDetailResponseDTO;
 import com.poly.bezbe.dto.response.product.ProductResponseDTO;
 import org.springframework.data.domain.Pageable;
 
@@ -20,8 +21,14 @@ public interface ProductService {
      * @param status     Trạng thái lọc ("ALL", "ACTIVE", "INACTIVE").
      * @return PageResponseDTO chứa danh sách sản phẩm.
      */
-    PageResponseDTO<ProductResponseDTO> getAllProducts(Pageable pageable, String searchTerm, String status);
-
+    PageResponseDTO<ProductResponseDTO> getAllProducts(
+            Pageable pageable,
+            String searchTerm,
+            String status,
+            String categoryName, // <-- Thêm
+            Double minPrice,     // <-- Thêm
+            Double maxPrice      // <-- Thêm
+    );
     /**
      * Tạo một sản phẩm mới.
      *
@@ -57,4 +64,5 @@ public interface ProductService {
     PageResponseDTO<ProductBriefDTO> getProductBriefList(Pageable pageable, String searchTerm);
     // THÊM HÀM NÀY
     void permanentDeleteProduct(Long productId);
+    ProductDetailResponseDTO getProductDetailById(Long productId);
 }

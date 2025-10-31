@@ -3,8 +3,8 @@ package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.dto.request.product.ProductRequestDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
-import com.poly.bezbe.dto.response.product.ProductBriefDTO;
-import com.poly.bezbe.dto.response.product.ProductResponseDTO;
+import com.poly.bezbe.dto.response.product.*;
+import com.poly.bezbe.dto.response.product.ProductDetailResponseDTO;
 import com.poly.bezbe.entity.*; // Sửa lại import
 import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
@@ -12,6 +12,7 @@ import com.poly.bezbe.repository.*; // Sửa lại import
 import com.poly.bezbe.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,7 +33,8 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepository categoryRepository;
     private final BrandRepository brandRepository;
     private final PromotionRepository promotionRepository;
-
+    private final AttributeRepository attributeRepository;
+    private final VariantValueRepository variantValueRepository;
     // --- 1. THÊM REPOSITORY NÀY ---
     private final VariantRepository variantRepository;
 
@@ -49,7 +53,21 @@ public class ProductServiceImpl implements ProductService {
         Long brandId = (brand != null) ? brand.getId() : null;
         Boolean isBrandActive = (brand != null) ? brand.isActive() : null;
 
-        // (Logic tính promotion... của bạn giữ nguyên)
+        // --- SỬA LOGIC LẤY GIÁ (PRICE) ---
+        // 1. Tìm giá variant (biến thể) rẻ nhất
+        Optional<BigDecimal> lowestVariantPriceOpt = variantRepository
+                .findFirstByProductIdAndActiveTrueOrderByPriceAsc(product.getId())
+                .map(Variant::getPrice); // Lấy giá
+
+        // 2. Lấy giá gốc (base price) của sản phẩm (nếu có)
+        BigDecimal basePrice = product.getPrice();
+
+        // 3. Quyết định giá hiển thị (display price)
+        // Ưu tiên 1: Giá variant rẻ nhất (nếu có)
+        // Ưu tiên 2: Giá gốc (nếu không có variant)
+        BigDecimal displayPrice = lowestVariantPriceOpt.orElse(basePrice);
+        // --- KẾT THÚC SỬA LOGIC GIÁ ---
+        // --- SỬA LOGIC KHUYẾN MÃI ---
         Long promotionId = null;
         String promotionName = null;
         BigDecimal salePrice = null;
@@ -63,7 +81,10 @@ public class ProductServiceImpl implements ProductService {
                 if (!today.isBefore(promotion.getStartDate()) && !today.isAfter(promotion.getEndDate())) {
                     isPromotionStillValid = true;
                     BigDecimal discountPercent = promotion.getDiscountValue();
-                    BigDecimal originalPrice = product.getPrice();
+
+                    // SỬA DÒNG NÀY: Dùng 'displayPrice' (giá variant) thay vì 'originalPrice'
+                    BigDecimal originalPrice = displayPrice;
+
                     if (discountPercent != null && originalPrice != null && discountPercent.compareTo(BigDecimal.ZERO) > 0) {
                         BigDecimal discountAmount = originalPrice.multiply(discountPercent).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
                         salePrice = originalPrice.subtract(discountAmount);
@@ -72,6 +93,7 @@ public class ProductServiceImpl implements ProductService {
                 }
             }
         }
+        // --- KẾT THÚC SỬA ---
 
         // --- TÍNH TOÁN variantCount ---
         long variantCount = variantRepository.countByProductId(product.getId());
@@ -80,7 +102,7 @@ public class ProductServiceImpl implements ProductService {
                 .id(product.getId())
                 .name(product.getName())
                 .description(product.getDescription())
-                .price(product.getPrice())
+                .price(displayPrice)
                 .imageUrl(product.getImageUrl())
                 .categoryId(categoryId)
                 .categoryName(categoryName)
@@ -105,23 +127,48 @@ public class ProductServiceImpl implements ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Promotion ID: " + promotionId));
     }
 
-    // (Hàm getAllProducts giữ nguyên)
+    // --- SỬA LẠI HOÀN TOÀN HÀM NÀY ---
     @Override
     @Transactional(readOnly = true)
-    public PageResponseDTO<ProductResponseDTO> getAllProducts(Pageable pageable, String searchTerm, String status) {
+    public PageResponseDTO<ProductResponseDTO> getAllProducts(
+            Pageable pageable,
+            String searchTerm,
+            String status,
+            String categoryName, // <-- Thêm tham số
+            Double minPrice,     // <-- Thêm tham số
+            Double maxPrice      // <-- Thêm tham số
+    ) {
+        // 1. Xử lý các biến cho query
         boolean searching = searchTerm != null && !searchTerm.isBlank();
-        boolean activeFilter = !"INACTIVE".equalsIgnoreCase(status);
         String search = searching ? searchTerm.trim() : null;
+
+        // 'status' từ controller là "ACTIVE", "INACTIVE", hoặc "ALL"
         String statusFilter = status.toUpperCase();
-        Page<Product> productPage = productRepository.findBySearchAndStatus(search, statusFilter, activeFilter, pageable);
+
+        // 'activeStatus' là boolean 'true' hoặc 'false'
+        // Đây là giá trị sẽ được so sánh với p.active khi status KHÔNG phải là 'ALL'
+        boolean activeStatus = "ACTIVE".equalsIgnoreCase(statusFilter);
+
+        // 2. Gọi hàm repository mới
+        Page<Product> productPage = productRepository.searchAndFilterProducts(
+                search,
+                statusFilter, // "ACTIVE", "INACTIVE", "ALL"
+                activeStatus, // true / false
+                categoryName,
+                minPrice,
+                maxPrice,
+                pageable
+        );
+
+        // 3. Map DTO (Giữ nguyên)
         List<ProductResponseDTO> productDTOs = productPage.getContent().stream()
                 .map(this::mapToProductDTO).collect(Collectors.toList());
+
         return new PageResponseDTO<>(
                 productDTOs, productPage.getNumber(), productPage.getSize(),
                 productPage.getTotalElements(), productPage.getTotalPages()
         );
     }
-
     // (Hàm createProduct giữ nguyên)
     @Override
     @Transactional
@@ -139,7 +186,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = Product.builder()
                 .name(request.getName())
                 .description(request.getDescription())
-                .price(request.getPrice())
+                .price(BigDecimal.ZERO)
                 .imageUrl(request.getImageUrl())
                 .category(category)
                 .brand(brand)
@@ -168,7 +215,6 @@ public class ProductServiceImpl implements ProductService {
 
         product.setName(request.getName());
         product.setDescription(request.getDescription());
-        product.setPrice(request.getPrice());
         product.setImageUrl(request.getImageUrl());
         product.setCategory(category);
         product.setBrand(brand);
@@ -191,9 +237,9 @@ public class ProductServiceImpl implements ProductService {
         productRepository.save(product);
 
         // 2. Ẩn hàng loạt các BIẾN THỂ đang active
-        List<ProductVariant> variantsToHide = variantRepository.findAllByProductIdAndActive(productId, true);
+        List<Variant> variantsToHide = variantRepository.findAllByProductIdAndActive(productId, true);
         if (!variantsToHide.isEmpty()) {
-            for (ProductVariant variant : variantsToHide) {
+            for (Variant variant : variantsToHide) {
                 variant.setActive(false);
             }
             variantRepository.saveAll(variantsToHide);
@@ -250,4 +296,52 @@ public class ProductServiceImpl implements ProductService {
                 productPage.getTotalElements(), productPage.getTotalPages()
         );
     }
+    // --- THÊM HÀM MỚI (LẤY CHI TIẾT SẢN PHẨM) ---
+    @Override // (Nếu bạn đã thêm hàm này vào Interface 'ProductService')
+    @Transactional(readOnly = true)
+    public ProductDetailResponseDTO getProductDetailById(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
+
+        if (!product.isActive()) {
+            throw new ResourceNotFoundException("Sản phẩm này đã ngừng hoạt động");
+        }
+
+        ProductResponseDTO productDTO = mapToProductDTO(product);
+
+        // 1. Lấy 4 sản phẩm liên quan (cùng Danh mục, khác ID, đang Active)
+        List<ProductResponseDTO> related = productRepository.findByCategoryIdAndIdNotAndActiveTrue(
+                product.getCategory().getId(), productId, PageRequest.of(0, 4)
+        ).stream().map(this::mapToProductDTO).collect(Collectors.toList());
+
+        // 2. Lấy các thuộc tính động (Dynamic Attributes) của sản phẩm này
+        // (Bạn cần thêm 2 query 'findAttributesByProductId' và 'findAttributeValuesByProductIdAndAttributeId'
+        // vào VariantValueRepository)
+        Set<Attribute> attributesForProduct = variantValueRepository.findAttributesByProductId(productId);
+
+        List<AttributeResponseDTO> attributeDTOs = attributesForProduct.stream().map(attr -> {
+            // Với mỗi thuộc tính, lấy các giá trị (values)
+            List<AttributeValueResponseDTO> valueDTOs = variantValueRepository.findAttributeValuesByProductIdAndAttributeId(productId, attr.getId())
+                    .stream()
+                    .map(val -> AttributeValueResponseDTO.builder()
+                            .id(val.getId())
+                            .value(val.getValue())
+                            .build())
+                    .collect(Collectors.toList());
+
+            return AttributeResponseDTO.builder()
+                    .id(attr.getId())
+                    .name(attr.getName())
+                    .values(valueDTOs)
+                    .build();
+        }).collect(Collectors.toList());
+
+
+        return ProductDetailResponseDTO.builder()
+                .product(productDTO)
+                .relatedProducts(related)
+                .attributes(attributeDTOs) // (Gửi danh sách thuộc tính động)
+                .build();
+    }
+    // --- KẾT THÚC HÀM MỚI ---
 }

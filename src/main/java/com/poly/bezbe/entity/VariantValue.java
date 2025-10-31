@@ -20,7 +20,7 @@ public class VariantValue {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "variant_id", nullable = false)
-    private ProductVariant variant;
+    private Variant variant;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "attribute_value_id", nullable = false)
