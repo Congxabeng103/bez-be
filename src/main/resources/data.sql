@@ -64,7 +64,6 @@ GO
 INSERT INTO coupons (id, code, description, discount_value, max_discount_amount, min_order_amount, usage_limit, used_count, start_date, end_date, active) VALUES
 (1, 'SALE11', N'Giảm 11% tối đa 50K cho đơn từ 200K', 11.00, 50000.00, 200000.00, 100, 0, '2025-11-01', '2025-11-11', 1),
 (2, 'FREESHIP', N'Giảm 30K (phí ship) cho đơn từ 150K', 30000.00, 30000.00, 150000.00, 500, 45, '2025-10-01', '2025-11-30', 1),
-(3, 'HETLUOT', N'Mã giảm giá đã hết lượt sử dụng', 100000.00, 100000.00, 500000.00, 10, 10, '2025-10-01', '2025-11-30', 0);
 GO
 
 SET IDENTITY_INSERT coupons OFF;

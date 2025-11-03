@@ -25,10 +25,10 @@ public class Variant {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "sku", unique = true, columnDefinition = "NVARCHAR(50)") // <-- SỬA
+    @Column(name = "sku", unique = true)
     private String sku;
 
-    @Column(name = "name", columnDefinition = "NVARCHAR(255)") // <-- SỬA
+    @Column(name = "name", columnDefinition = "NVARCHAR(255)")
     private String name;
 
     @Column(name = "price", precision = 10, scale = 2)
