@@ -3,7 +3,10 @@ package com.poly.bezbe.service;
 import com.poly.bezbe.dto.request.CouponRequestDTO;
 import com.poly.bezbe.dto.response.CouponResponseDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
+import com.poly.bezbe.entity.Coupon;
 import org.springframework.data.domain.Pageable;
+
+import java.math.BigDecimal;
 
 /**
  * Interface định nghĩa các nghiệp vụ cho Mã giảm giá (Coupon).
@@ -44,4 +47,5 @@ public interface CouponService {
      * @param id ID của mã cần xóa.
      */
     void deleteCoupon(Long id);
+    Coupon validateCoupon(String code, BigDecimal subtotal);
 }

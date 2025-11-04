@@ -1,0 +1,158 @@
+package com.poly.bezbe.controller;
+
+import com.poly.bezbe.dto.request.OrderRequestDTO;
+import com.poly.bezbe.dto.request.UpdateStatusRequestDTO;
+import com.poly.bezbe.dto.response.*;
+import com.poly.bezbe.entity.User;
+import com.poly.bezbe.service.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    @PostMapping("/create")
+    public ResponseEntity<ApiResponseDTO<?>> createOrder(
+            @AuthenticationPrincipal User user,
+            @Valid @RequestBody OrderRequestDTO request,
+            HttpServletRequest httpServletRequest // Cần để lấy IP cho VNPAY
+    ) {
+        // (user sẽ không null do Spring Security)
+
+        // Hàm createOrder sẽ trả về OrderResponseDTO (nếu là COD)
+        // hoặc VnpayResponseDTO (nếu là VNPAY)
+        Object result = orderService.createOrder(user, request, httpServletRequest);
+
+        return ResponseEntity.ok(ApiResponseDTO.success(result, "Xử lý đơn hàng thành công"));
+    }
+    // --- THÊM 2 API MỚI CHO ADMIN ---
+
+    /**
+     * API cho Admin xác nhận đơn hàng (COD) và trừ kho
+     */
+    @PutMapping("/{orderId}/confirm")
+    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> confirmOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal User user // Spring Security sẽ kiểm tra quyền (ADMIN/STAFF)
+    ) {
+        OrderResponseDTO orderResponse = orderService.adminConfirmOrder(orderId);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Xác nhận đơn hàng thành công, đã trừ kho."));
+    }
+
+    /**
+     * API cho Admin hủy đơn hàng (và trả hàng về kho nếu cần)
+     */
+    @PutMapping("/{orderId}/cancel")
+    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> cancelOrder(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal User user // Spring Security sẽ kiểm tra quyền
+    ) {
+        OrderResponseDTO orderResponse = orderService.adminCancelOrder(orderId);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Hủy đơn hàng thành công, đã trả hàng về kho (nếu cần)."));
+    }
+
+    // --- THÊM 3 API MỚI CHO ADMIN PAGE ---
+
+    /**
+     * Lấy danh sách đơn hàng cho Admin (Lọc, Phân trang)
+     */
+    @GetMapping
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<AdminOrderDTO>>> getAdminOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(defaultValue = "ALL") String status
+    ) {
+        String[] sortParams = sort.split(",");
+        Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
+
+        PageResponseDTO<AdminOrderDTO> orderPage = orderService.getAdminOrders(pageable, status, search);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderPage, "Lấy danh sách đơn hàng thành công"));
+    }
+
+    /**
+     * Lấy chi tiết 1 đơn hàng cho Admin (Modal)
+     */
+    @GetMapping("/{orderId}")
+    public ResponseEntity<ApiResponseDTO<AdminOrderDetailDTO>> getAdminOrderDetail(
+            @PathVariable Long orderId
+    ) {
+        AdminOrderDetailDTO orderDetail = orderService.getAdminOrderDetail(orderId);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderDetail, "Lấy chi tiết đơn hàng thành công"));
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng (API đa năng)
+     */
+    @PutMapping("/{orderId}/status")
+    public ResponseEntity<ApiResponseDTO<AdminOrderDTO>> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestBody UpdateStatusRequestDTO request
+    ) {
+        AdminOrderDTO updatedOrder = orderService.updateOrderStatus(orderId, request);
+        return ResponseEntity.ok(ApiResponseDTO.success(updatedOrder, "Cập nhật trạng thái thành công"));
+    }
+
+    // --- THÊM 2 API MỚI NÀY CHO USER ---
+
+    @GetMapping("/my-orders")
+    public ResponseEntity<ApiResponseDTO<PageResponseDTO<UserOrderDTO>>> getMyOrders(
+            @AuthenticationPrincipal User user,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        PageResponseDTO<UserOrderDTO> orderPage = orderService.getMyOrders(user, pageable);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderPage, "Lấy đơn hàng thành công"));
+    }
+
+    @GetMapping("/my-orders/{orderId}")
+    public ResponseEntity<ApiResponseDTO<AdminOrderDetailDTO>> getMyOrderDetail(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long orderId
+    ) {
+        AdminOrderDetailDTO orderDetail = orderService.getMyOrderDetail(user, orderId);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderDetail, "Lấy chi tiết đơn hàng thành công"));
+    }
+
+
+    @PutMapping("/my-orders/{orderId}/cancel")
+    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> userCancelOrder(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long orderId
+    ) {
+        OrderResponseDTO orderResponse = orderService.userCancelOrder(orderId, user);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Hủy đơn hàng thành công."));
+    }
+
+    @PutMapping("/my-orders/{orderId}/complete")
+    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> userConfirmDelivery(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long orderId
+    ) {
+        OrderResponseDTO orderResponse = orderService.userConfirmDelivery(orderId, user);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Xác nhận đã nhận hàng thành công."));
+    }
+
+    @PutMapping("/my-orders/{orderId}/report-issue")
+    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> userReportIssue(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long orderId
+    ) {
+        OrderResponseDTO orderResponse = orderService.reportDeliveryIssue(orderId, user);
+        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Gửi khiếu nại thành công."));
+    }
+}

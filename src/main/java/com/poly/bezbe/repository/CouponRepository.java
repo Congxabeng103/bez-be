@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Optional;
+
 @Repository
 public interface CouponRepository extends JpaRepository<Coupon, Long> {
 
@@ -27,4 +29,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
             @Param("active") boolean active,
             Pageable pageable
     );
+    // --- 2. THÊM DÒNG NÀY ĐỂ SỬA LỖI ---
+    /**
+     * Tìm coupon bằng mã, không phân biệt hoa thường
+     */
+    Optional<Coupon> findByCodeIgnoreCase(String code);
 }

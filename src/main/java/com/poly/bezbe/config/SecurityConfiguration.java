@@ -48,55 +48,67 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
 
                         // 1. API ADMIN (Yêu cầu ADMIN)
-                        // (Chỉ ADMIN mới được POST, PUT, DELETE)
+                        // (Các rule POST, PUT, DELETE cho /products, /categories... giữ nguyên)
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
                                 "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
                                 "/api/v1/coupons/**", "/api/v1/users/**"
                         ).hasAuthority("ADMIN")
-
                         .requestMatchers(HttpMethod.PUT,
                                 "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
                                 "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
                                 "/api/v1/coupons/**", "/api/v1/users/**"
                         ).hasAuthority("ADMIN")
-
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
                                 "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
                                 "/api/v1/coupons/**", "/api/v1/users/**"
                         ).hasAuthority("ADMIN")
 
-                        // 2. API NHÂN VIÊN (STAFF + ADMIN)
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/orders/**",        // Xem đơn hàng
-                                "/api/v1/users/customers",  // Xem khách hàng
-                                "/api/v1/users/employees"   // Xem nhân viên
-                        ).hasAnyAuthority("ADMIN", "STAFF")
+                        // --- BẮT ĐẦU SỬA ---
 
+                        // 2. API CỦA USER (Đã đăng nhập - PHẢI ĐẶT TRƯỚC API CỦA STAFF)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/coupons/validate", // <-- Cho phép USER gọi API này
+                                "/api/v1/orders/my-orders", // <-- Lấy list
+                                "/api/v1/orders/my-orders/**" // <-- Lấy chi tiết
+                        ).authenticated()
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/v1/orders/**" // Cập nhật đơn hàng
+                                "/api/v1/orders/my-orders/**" // <-- Hủy, xác nhận, khiếu nại
+                        ).authenticated()
+
+                        // 3. API NHÂN VIÊN (STAFF + ADMIN - ĐẶT SAU API USER)
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/orders/**", // <-- Bây giờ sẽ bắt các API Admin/Staff còn lại
+                                "/api/v1/users/customers",
+                                "/api/v1/users/employees"
+                        ).hasAnyAuthority("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.PUT,
+                                "/api/v1/orders/**" // <-- Bây giờ sẽ bắt các API Admin/Staff còn lại
                         ).hasAnyAuthority("ADMIN", "STAFF")
 
-                        // (API GET riêng của Admin)
+                        // 4. API GET CÒN LẠI CỦA ADMIN
+                        // (Rule này có thể đặt ở đây hoặc gộp vào mục 1)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/attributes/**", "/api/v1/promotions/**", "/api/v1/coupons/**"
+                                "/api/v1/attributes/**",
+                                "/api/v1/promotions/**",
+                                "/api/v1/coupons/**"
                         ).hasAuthority("ADMIN")
 
-
-                        // 3. API CÔNG KHAI (PUBLIC - Cho phép tất cả)
-                        .requestMatchers("/api/v1/auth/**").permitAll() // Đăng nhập, Đăng ký...
-
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/products",          // Lấy list sản phẩm (Trang Products)
-                                "/api/v1/products/detail/**",// Lấy chi tiết sản phẩm (Trang Detail)
-                                "/api/v1/categories/all-brief", // Lấy list category cho filter
-                                "/api/v1/brands/all-brief",     // Lấy list brand cho filter
-                                "/api/v1/variants/find"      // Lấy variant khi user chọn
-                        ).permitAll()
                         // --- KẾT THÚC SỬA ---
 
-                        // 4. Mọi request còn lại (vd: /profile) phải đăng nhập
+                        // 5. API CÔNG KHAI (PUBLIC - Cho phép tất cả)
+                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/products",
+                                "/api/v1/products/detail/**",
+                                "/api/v1/categories/all-brief",
+                                "/api/v1/brands/all-brief",
+                                "/api/v1/variants/find" ,
+                                "/api/v1/payment/vnpay-return/**"
+                        ).permitAll()
+
+                        // 6. Mọi request còn lại phải đăng nhập
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

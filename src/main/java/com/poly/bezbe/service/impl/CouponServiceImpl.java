@@ -4,6 +4,7 @@ import com.poly.bezbe.dto.request.CouponRequestDTO;
 import com.poly.bezbe.dto.response.CouponResponseDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.entity.Coupon;
+import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.CouponRepository;
@@ -14,6 +15,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -127,5 +130,42 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
 
         coupon.setActive(false); // <-- SOFT DELETE
         couponRepository.save(coupon);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Coupon validateCoupon(String code, BigDecimal subtotal) {
+        if (code == null || code.trim().isEmpty()) {
+            return null; // Không áp dụng coupon
+        }
+
+        // 1. Tìm coupon
+        Coupon coupon = couponRepository.findByCodeIgnoreCase(code.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không hợp lệ"));
+
+        // 2. Kiểm tra Active
+        if (!coupon.isActive()) {
+            throw new BusinessRuleException("Mã giảm giá đã hết hạn sử dụng");
+        }
+
+        // 3. Kiểm tra ngày
+        LocalDate today = LocalDate.now();
+        if (today.isBefore(coupon.getStartDate()) || today.isAfter(coupon.getEndDate())) {
+            throw new BusinessRuleException("Mã giảm giá không nằm trong thời gian áp dụng");
+        }
+
+        // 4. Kiểm tra lượt dùng
+        // (Giả sử 0 = không giới hạn)
+        if (coupon.getUsageLimit() > 0 && coupon.getUsedCount() >= coupon.getUsageLimit()) {
+            throw new BusinessRuleException("Mã giảm giá đã hết lượt sử dụng");
+        }
+
+        // 5. Kiểm tra giá trị đơn hàng tối thiểu
+        if (subtotal.compareTo(coupon.getMinOrderAmount()) < 0) {
+            throw new BusinessRuleException("Đơn hàng chưa đạt giá trị tối thiểu ("
+                    + coupon.getMinOrderAmount() + "đ) để áp dụng mã");
+        }
+
+        return coupon;
     }
 }
