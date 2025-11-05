@@ -7,6 +7,8 @@ import com.poly.bezbe.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List; // <-- 2. IMPORT LIST
+
 public interface OrderService {
 
     /**
@@ -21,12 +23,13 @@ public interface OrderService {
     /**
      * Admin xác nhận đơn hàng (thường là COD) và trừ kho
      */
-    OrderResponseDTO adminConfirmOrder(Long orderId);
+    OrderResponseDTO adminConfirmOrder(Long orderId); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
 
     /**
      * Admin hủy đơn hàng. Tự động trả hàng về kho nếu cần.
      */
-    OrderResponseDTO adminCancelOrder(Long orderId);
+    OrderResponseDTO adminCancelOrder(Long orderId); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
+
     // --- THÊM 3 HÀM MỚI CHO ADMIN PAGE ---
 
     /** Lấy danh sách đơn hàng cho Admin (có lọc, tìm kiếm, phân trang) */
@@ -35,8 +38,15 @@ public interface OrderService {
     /** Lấy chi tiết 1 đơn hàng cho Admin */
     AdminOrderDetailDTO getAdminOrderDetail(Long orderId);
 
-    /** Cập nhật trạng thái đơn hàng (linh hoạt) */
-    AdminOrderDTO updateOrderStatus(Long orderId, UpdateStatusRequestDTO request);
+    /** * Cập nhật trạng thái đơn hàng (linh hoạt)
+     * HÀM LÕI ĐỂ GHI LOG
+     */
+    // --- 3. SỬA HÀM NÀY: Thêm 'User currentUser' ---
+    AdminOrderDTO updateOrderStatus(Long orderId, UpdateStatusRequestDTO request, User currentUser);
+
+    // --- 4. THÊM HÀM NÀY: Để đọc log ---
+    /** Lấy lịch sử thao tác của một đơn hàng */
+    List<OrderAuditLogResponseDTO> getOrderHistory(Long orderId);
 
 // --- THÊM 2 HÀM MỚI CHO USER ---
 
@@ -47,11 +57,14 @@ public interface OrderService {
     AdminOrderDetailDTO getMyOrderDetail(User user, Long orderId);
 
     /** User báo cáo vấn đề (khiếu nại) */
-    OrderResponseDTO reportDeliveryIssue(Long orderId, User user);
+    OrderResponseDTO reportDeliveryIssue(Long orderId, User user); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
 
     /** User tự hủy đơn */
-    OrderResponseDTO userCancelOrder(Long orderId, User user);
+    OrderResponseDTO userCancelOrder(Long orderId, User user); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
 
     /** User xác nhận đã nhận hàng */
-    OrderResponseDTO userConfirmDelivery(Long orderId, User user);
+    OrderResponseDTO userConfirmDelivery(Long orderId, User user); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
+
+    // --- THÊM HÀM MỚI NÀY VÀO INTERFACE ---
+    VnpayResponseDTO retryVnpayPayment(User user, Long orderId, HttpServletRequest httpServletRequest);
 }

@@ -3,6 +3,7 @@ package com.poly.bezbe.controller;
 import com.poly.bezbe.dto.request.OrderRequestDTO;
 import com.poly.bezbe.dto.request.UpdateStatusRequestDTO;
 import com.poly.bezbe.dto.response.*;
+import com.poly.bezbe.dto.response.OrderAuditLogResponseDTO; // <-- 1. IMPORT DTO LOG
 import com.poly.bezbe.entity.User;
 import com.poly.bezbe.service.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List; // <-- 2. IMPORT LIST
 
 @RestController
 @RequestMapping("/api/v1/orders")
@@ -46,6 +49,8 @@ public class OrderController {
             @PathVariable Long orderId,
             @AuthenticationPrincipal User user // Spring Security sẽ kiểm tra quyền (ADMIN/STAFF)
     ) {
+        // GỢI Ý: Nên sửa hàm 'adminConfirmOrder' để gọi 'updateOrderStatus'
+        // Bằng cách đó, hành động 'confirm' này cũng sẽ được GHI LOG.
         OrderResponseDTO orderResponse = orderService.adminConfirmOrder(orderId);
         return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Xác nhận đơn hàng thành công, đã trừ kho."));
     }
@@ -58,6 +63,8 @@ public class OrderController {
             @PathVariable Long orderId,
             @AuthenticationPrincipal User user // Spring Security sẽ kiểm tra quyền
     ) {
+        // GỢI Ý: Nên sửa hàm 'adminCancelOrder' để gọi 'updateOrderStatus'
+        // Bằng cách đó, hành động 'cancel' này cũng sẽ được GHI LOG.
         OrderResponseDTO orderResponse = orderService.adminCancelOrder(orderId);
         return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Hủy đơn hàng thành công, đã trả hàng về kho (nếu cần)."));
     }
@@ -94,19 +101,40 @@ public class OrderController {
         return ResponseEntity.ok(ApiResponseDTO.success(orderDetail, "Lấy chi tiết đơn hàng thành công"));
     }
 
+    // --- SỬA 3: API CẬP NHẬT TRẠNG THÁI ---
     /**
      * Cập nhật trạng thái đơn hàng (API đa năng)
+     * Đây là API "lõi" sẽ ghi log
      */
     @PutMapping("/{orderId}/status")
     public ResponseEntity<ApiResponseDTO<AdminOrderDTO>> updateOrderStatus(
             @PathVariable Long orderId,
-            @RequestBody UpdateStatusRequestDTO request
+            @RequestBody UpdateStatusRequestDTO request,
+            @AuthenticationPrincipal User currentUser // <-- LẤY USER ĐANG ĐĂNG NHẬP
     ) {
-        AdminOrderDTO updatedOrder = orderService.updateOrderStatus(orderId, request);
+        // Truyền 'currentUser' xuống Service để GHI LOG
+        AdminOrderDTO updatedOrder = orderService.updateOrderStatus(orderId, request, currentUser);
         return ResponseEntity.ok(ApiResponseDTO.success(updatedOrder, "Cập nhật trạng thái thành công"));
     }
+    // --- KẾT THÚC SỬA 3 ---
 
-    // --- THÊM 2 API MỚI NÀY CHO USER ---
+    // --- SỬA 4: THÊM API MỚI ĐỂ ĐỌC LOG ---
+    /**
+     * Lấy lịch sử thao tác của 1 đơn hàng (cho Modal)
+     */
+    @GetMapping("/{orderId}/history")
+    public ResponseEntity<ApiResponseDTO<List<OrderAuditLogResponseDTO>>> getOrderHistory(
+            @PathVariable Long orderId
+    ) {
+        // Gọi hàm service mới (đã code ở OrderServiceImpl)
+        List<OrderAuditLogResponseDTO> historyDTOs = orderService.getOrderHistory(orderId);
+
+        return ResponseEntity.ok(ApiResponseDTO.success(historyDTOs, "Tải lịch sử thao tác thành công"));
+    }
+    // --- KẾT THÚC SỬA 4 ---
+
+
+    // --- CÁC API CỦA USER (Giữ nguyên) ---
 
     @GetMapping("/my-orders")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<UserOrderDTO>>> getMyOrders(

@@ -1,6 +1,7 @@
 package com.poly.bezbe.dto.response;
 
 import com.poly.bezbe.enums.OrderStatus;
+import com.poly.bezbe.enums.PaymentMethod;
 import com.poly.bezbe.enums.PaymentStatus;
 import lombok.Builder;
 import lombok.Data;
@@ -18,4 +19,6 @@ public class AdminOrderDTO {
     private BigDecimal totalAmount;
     private OrderStatus orderStatus;
     private PaymentStatus paymentStatus;
+    private PaymentMethod paymentMethod;
+
 }

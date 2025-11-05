@@ -20,10 +20,12 @@ public class VnpayService {
     private final VnpayConfig vnpayConfig;
 
     public String createPaymentUrl(HttpServletRequest req, long orderId, BigDecimal amount) {
-        // VNPAY yêu cầu amount là đơn vị "đồng" * 100
         String vnp_Amount = amount.multiply(new BigDecimal("100")).toBigInteger().toString();
-
-        String vnp_TxnRef = String.valueOf(orderId);
+        // --- BẮT ĐẦU SỬA LỖI ---
+        // TẠO MỘT MÃ TXNREF DUY NHẤT MỖI LẦN
+        // Bằng cách thêm 4 ký tự ngẫu nhiên vào cuối
+        String vnp_TxnRef = orderId + "_" + UUID.randomUUID().toString().substring(0, 4);
+        // --- KẾT THÚC SỬA LỖI ---
         String vnp_IpAddr = getIpAddress(req);
 
         Map<String, String> vnp_Params = new HashMap<>();
@@ -36,7 +38,10 @@ public class VnpayService {
         vnp_Params.put("vnp_OrderInfo", "Thanh toan don hang " + vnp_TxnRef);
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
+
+        // SỬA LỖI 2: Dùng returnUrl từ config (phải là link backend)
         vnp_Params.put("vnp_ReturnUrl", vnpayConfig.getVnp_ReturnUrl());
+
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
         Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
@@ -44,36 +49,47 @@ public class VnpayService {
         String vnp_CreateDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
 
-        cld.add(Calendar.MINUTE, 15); // Hết hạn sau 15 phút
+        cld.add(Calendar.MINUTE, 15);
         String vnp_ExpireDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
 
+        // --- BẮT ĐẦU SỬA LỖI 1 (HASH DATA) ---
         List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
         Collections.sort(fieldNames);
+
         StringBuilder hashData = new StringBuilder();
         StringBuilder query = new StringBuilder();
 
-        for (String fieldName : fieldNames) {
+        Iterator<String> itr = fieldNames.iterator();
+        while (itr.hasNext()) {
+            String fieldName = itr.next();
             String fieldValue = vnp_Params.get(fieldName);
             if (fieldValue != null && !fieldValue.isEmpty()) {
-                // Build hash data
+                //Build hash data
                 hashData.append(fieldName);
                 hashData.append('=');
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                // Build query
-                query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII));
+                // Sửa: Dùng UTF-8 (an toàn cho tiếng Việt)
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
+
+                //Build query
+                query.append(URLEncoder.encode(fieldName, StandardCharsets.UTF_8));
                 query.append('=');
-                query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII));
-                query.append('&');
+                query.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
+
+                // Sửa: Thêm '&' vào cả hai
+                if (itr.hasNext()) {
+                    query.append('&');
+                    hashData.append('&');
+                }
             }
         }
+        // --- KẾT THÚC SỬA LỖI 1 ---
 
-        query.setLength(query.length() - 1); // Remove last &
+        String queryUrl = query.toString();
         String vnp_SecureHash = hmacSHA512(vnpayConfig.getVnp_HashSecret(), hashData.toString());
-        query.append("&vnp_SecureHash=");
-        query.append(vnp_SecureHash);
 
-        return vnpayConfig.getVnp_ApiUrl() + "?" + query.toString();
+        queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
+        return vnpayConfig.getVnp_ApiUrl() + "?" + queryUrl;
     }
 
     // Lấy IP (VNPAY bắt buộc)

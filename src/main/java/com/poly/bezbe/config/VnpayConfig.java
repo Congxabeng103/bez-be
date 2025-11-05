@@ -4,12 +4,6 @@ import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
-// TẠO FILE application.properties và ĐIỀN CÁC GIÁ TRỊ NÀY VÀO
-// vnpay.tmnCode=YOUR_TMN_CODE
-// vnpay.hashSecret=YOUR_HASH_SECRET
-// vnpay.apiUrl=https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-// vnpay.returnUrl=http://localhost:3000/payment-return (Link FE nhận kết quả)
-
 @Configuration
 @Getter
 public class VnpayConfig {
@@ -22,6 +16,14 @@ public class VnpayConfig {
     @Value("${vnpay.apiUrl}")
     private String vnp_ApiUrl;
 
+    // Sửa: Đây là API backend /api/v1/payment/vnpay-return
     @Value("${vnpay.returnUrl}")
     private String vnp_ReturnUrl;
+
+    // THÊM 2 DÒNG NÀY
+    @Value("${vnpay.ipnUrl}")
+    private String vnp_IpnUrl; // API IPN (server-to-server)
+
+    @Value("${vnpay.frontendReturnUrl}")
+    private String vnp_FrontendReturnUrl; // Link FE
 }
