@@ -20,10 +20,14 @@ public class VnpayConfig {
     @Value("${vnpay.returnUrl}")
     private String vnp_ReturnUrl;
 
+
+
     // THÊM 2 DÒNG NÀY
     @Value("${vnpay.ipnUrl}")
     private String vnp_IpnUrl; // API IPN (server-to-server)
 
     @Value("${vnpay.frontendReturnUrl}")
     private String vnp_FrontendReturnUrl; // Link FE
+
+
 }

@@ -30,7 +30,7 @@ public class OrderAuditLog {
     // --- SỬA Ở ĐÂY ---
     // Phải là "NTEXT" (Unicode) thay vì "TEXT" (Non-Unicode)
     // Hoặc dùng NVARCHAR với độ dài lớn
-    @Column(nullable = false, columnDefinition = "NVARCHAR(100)")
+    @Column(nullable = false, columnDefinition = "NVARCHAR(1000)")
     private String description;
 
     // (Mấy cái này thường là ENUM hoặc code, không cần NVARCHAR)

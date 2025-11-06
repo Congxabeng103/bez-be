@@ -4,7 +4,7 @@ package com.poly.bezbe.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod; // (Quan trọng)
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -39,7 +39,6 @@ public class SecurityConfiguration {
         return source;
     }
 
-    // --- SỬA TOÀN BỘ HÀM NÀY (Sắp xếp lại thứ tự) ---
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -47,8 +46,7 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
 
-                        // 1. API ADMIN (Yêu cầu ADMIN)
-                        // (Các rule POST, PUT, DELETE cho /products, /categories... giữ nguyên)
+                        // 1. API ADMIN (Giữ nguyên)
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
                                 "/api/v1/attributes/**", "/api/v1/variants/**", "/api/v1/promotions/**",
@@ -65,37 +63,33 @@ public class SecurityConfiguration {
                                 "/api/v1/coupons/**", "/api/v1/users/**"
                         ).hasAuthority("ADMIN")
 
-                        // --- BẮT ĐẦU SỬA ---
-
-                        // 2. API CỦA USER (Đã đăng nhập - PHẢI ĐẶT TRƯỚC API CỦA STAFF)
+                        // 2. API CỦA USER (Giữ nguyên)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/coupons/validate", // <-- Cho phép USER gọi API này
-                                "/api/v1/orders/my-orders", // <-- Lấy list
-                                "/api/v1/orders/my-orders/**" // <-- Lấy chi tiết
+                                "/api/v1/coupons/validate",
+                                "/api/v1/orders/my-orders",
+                                "/api/v1/orders/my-orders/**"
                         ).authenticated()
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/v1/orders/my-orders/**" // <-- Hủy, xác nhận, khiếu nại
+                                "/api/v1/orders/my-orders/**"
                         ).authenticated()
 
-                        // 3. API NHÂN VIÊN (STAFF + ADMIN - ĐẶT SAU API USER)
+                        // 3. API NHÂN VIÊN (Giữ nguyên)
                         .requestMatchers(HttpMethod.GET,
-                                "/api/v1/orders/**", // <-- Bây giờ sẽ bắt các API Admin/Staff còn lại
+                                "/api/v1/orders/**",
                                 "/api/v1/users/customers",
                                 "/api/v1/users/employees"
                         ).hasAnyAuthority("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/v1/orders/**" // <-- Bây giờ sẽ bắt các API Admin/Staff còn lại
+                                "/api/v1/orders/**"
                         ).hasAnyAuthority("ADMIN", "STAFF")
 
-                        // 4. API GET CÒN LẠI CỦA ADMIN
-                        // (Rule này có thể đặt ở đây hoặc gộp vào mục 1)
+                        // 4. API GET CÒN LẠI CỦA ADMIN (Giữ nguyên)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/attributes/**",
                                 "/api/v1/promotions/**",
                                 "/api/v1/coupons/**"
                         ).hasAuthority("ADMIN")
 
-                        // --- KẾT THÚC SỬA ---
 
                         // 5. API CÔNG KHAI (PUBLIC - Cho phép tất cả)
                         .requestMatchers("/api/v1/auth/**").permitAll()
@@ -105,10 +99,16 @@ public class SecurityConfiguration {
                                 "/api/v1/categories/all-brief",
                                 "/api/v1/brands/all-brief",
                                 "/api/v1/variants/find" ,
-                                "/api/v1/payment/vnpay-return/**"
+                                "/api/v1/payment/vnpay-return/**",
+
+                                // --- SỬA Ở ĐÂY ---
+                                // Thêm dòng này để "mở cổng" cho IPN
+                                "/api/v1/payment/vnpay-ipn/**"
+                                // --- KẾT THÚC SỬA ---
+
                         ).permitAll()
 
-                        // 6. Mọi request còn lại phải đăng nhập
+                        // 6. Mọi request còn lại phải đăng nhập (Giữ nguyên)
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

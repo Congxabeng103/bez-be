@@ -48,8 +48,8 @@ SET IDENTITY_INSERT promotions ON;
 GO
 
 INSERT INTO promotions (id, name, description, discount_value, start_date, end_date, active) VALUES
-(1, N'Giảm 10%', N'Giảm 10% cho toàn bộ áo phông', 10.00, '2025-10-01', '2025-11-30', 1),
-(2, N'Sale Hè 50K', N'Giảm 50,000đ cho đơn hàng quần jeans', 50000.00, '2025-06-01', '2025-06-30', 0);
+(1, N'Giảm 10%', N'Giảm 10% cho toàn bộ áo phông', 10, '2025-10-01', '2025-11-30', 1),
+(2, N'Sale Hè 50K', N'Giảm 50,000đ cho đơn hàng quần jeans',30, '2025-06-01', '2025-06-30', 0);
 GO
 
 SET IDENTITY_INSERT promotions OFF;
@@ -63,7 +63,7 @@ GO
 
 INSERT INTO coupons (id, code, description, discount_value, max_discount_amount, min_order_amount, usage_limit, used_count, start_date, end_date, active) VALUES
 (1, 'SALE11', N'Giảm 11% tối đa 50K cho đơn từ 200K', 11, 50000.00, 200000.00, 100, 0, '2025-11-01', '2025-11-11', 1),
-(2, 'FREESHIP', N'Giảm 30K (phí ship) cho đơn từ 150K', 30, 30000.00, 150000.00, 500, 45, '2025-10-01', '2025-11-30', 1),
+(2, 'FREESHIP', N'Giảm 30K (phí ship) cho đơn từ 150K', 30, 30000.00, 150000.00, 500, 45, '2025-10-01', '2025-11-30', 1);
 GO
 
 SET IDENTITY_INSERT coupons OFF;
