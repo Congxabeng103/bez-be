@@ -183,4 +183,14 @@ public class OrderController {
         OrderResponseDTO orderResponse = orderService.reportDeliveryIssue(orderId, user);
         return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Gửi khiếu nại thành công."));
     }
+    @GetMapping("/my-orders/{orderId}/history")
+    public ResponseEntity<ApiResponseDTO<List<OrderAuditLogResponseDTO>>> getMyOrderHistory(
+            @AuthenticationPrincipal User user,
+            @PathVariable Long orderId
+    ) {
+        // Gọi hàm service mới (đã code ở OrderServiceImpl)
+        List<OrderAuditLogResponseDTO> historyDTOs = orderService.getMyOrderHistory(orderId, user);
+
+        return ResponseEntity.ok(ApiResponseDTO.success(historyDTOs, "Tải lịch sử thao tác thành công"));
+    }
 }

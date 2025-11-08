@@ -15,25 +15,21 @@ public class OrderAuditLog {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @JoinColumn(name = "order_id", nullable = false) // (Đơn hàng thì luôn phải có, false là đúng)
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User staff;
+    @JoinColumn(name = "user_id", nullable = true) // <-- SỬA LẠI THÀNH "TRUE"
+    private User staff; // (Staff/User có thể null, vì hệ thống có thể tự chạy)
 
-    // --- SỬA Ở ĐÂY ---
-    // (Giống như cách bạn làm với User.java)
+    // (Các sửa đổi này của bạn là tốt, giữ nguyên)
     @Column(nullable = false, columnDefinition = "NVARCHAR(100)")
     private String staffName;
 
-    // --- SỬA Ở ĐÂY ---
-    // Phải là "NTEXT" (Unicode) thay vì "TEXT" (Non-Unicode)
-    // Hoặc dùng NVARCHAR với độ dài lớn
     @Column(nullable = false, columnDefinition = "NVARCHAR(1000)")
     private String description;
 
-    // (Mấy cái này thường là ENUM hoặc code, không cần NVARCHAR)
+    // (Mấy cái này ok)
     private String fieldChanged;
     private String oldValue;
     private String newValue;

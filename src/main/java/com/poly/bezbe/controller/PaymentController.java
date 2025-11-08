@@ -2,6 +2,7 @@ package com.poly.bezbe.controller;
 
 import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.OrderResponseDTO;
+import com.poly.bezbe.dto.response.RefundResponseDTO;
 import com.poly.bezbe.dto.response.VnpayResponseDTO;
 import com.poly.bezbe.entity.User;
 import com.poly.bezbe.service.OrderService;
@@ -87,4 +88,30 @@ public class PaymentController {
         return ResponseEntity.ok(vnpayResponse);
     }
     // --- KẾT THÚC API IPN ---
+
+    @PostMapping("/refund/vnpay/{orderId}")
+    @ResponseBody // (Rất quan trọng vì class là @Controller, nhưng hàm này trả JSON)
+    public ResponseEntity<ApiResponseDTO<RefundResponseDTO>> requestVnpayRefund(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal User currentUser, // Lấy admin/staff đang đăng nhập
+            HttpServletRequest request // Cần để lấy IP
+    ) {
+        // 1. Kiểm tra bảo mật
+        if (currentUser == null) {
+            return ResponseEntity.status(401).body(ApiResponseDTO.error("Bạn cần đăng nhập để thực hiện hành động này."));
+        }
+
+        // 2. Gọi service (hàm đã code ở Bước 4)
+        RefundResponseDTO refundResponse = orderService.requestVnpayRefund(
+                orderId,
+                request,
+                currentUser
+        );
+
+        // 3. Trả về thành công
+        return ResponseEntity.ok(ApiResponseDTO.success(
+                refundResponse,
+                refundResponse.getMessage() // Lấy thông báo "Hoàn tiền thành công!"
+        ));
+    }
 }

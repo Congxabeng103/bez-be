@@ -45,7 +45,8 @@ public class Payment {
 
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
-
+    @Column(name = "vnp_txn_ref")
+    private String vnpTxnRef; // Đây là vnp_TxnRef (VD: 26_d325)
 
 
 }

@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.Map; // <-- THÊM IMPORT NÀY
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.poly.bezbe.dto.request.OrderRequestDTO;
 import com.poly.bezbe.dto.request.UpdateStatusRequestDTO;
 import com.poly.bezbe.dto.response.*;
@@ -111,7 +113,18 @@ public class OrderServiceImpl implements OrderService {
                 .note(request.getNote())
                 .build();
         Order savedOrder = orderRepository.save(order);
-
+        // --- THÊM DÒNG NÀY ---
+        // Ghi log (Timeline) cho hành động "Tạo đơn hàng"
+        // (Hàm formatUserTimelineMessage ở FE sẽ bắt được "Đơn hàng đã được tạo")
+        auditLogService.logActivity(
+                savedOrder,
+                "Khách hàng", // 1. Truyền String "Khách hàng"
+                "Đơn hàng đã được tạo.", // 2. Mô tả
+                "orderStatus", // 3. Field
+                null, // 4. Old
+                OrderStatus.PENDING.name() // 5. New
+        );
+        // --- KẾT THÚC THÊM ---
         // 6. Chuyển CartItems -> OrderItems (Không trừ kho)
         List<OrderItem> orderItems = new ArrayList<>();
         for (Cart cartItem : cartItems) {
@@ -278,16 +291,74 @@ public class OrderServiceImpl implements OrderService {
             // 6. Xử lý logic
             // ... (Code 'if ("00".equals(vnp_ResponseCode))' của bạn) ...
             if ("00".equals(vnp_ResponseCode)) {
+                // 1. CẬP NHẬT ORDER (Bạn đã làm)
                 order.setPaymentStatus(PaymentStatus.PAID);
                 order.setOrderStatus(OrderStatus.CONFIRMED);
+                // --- THÊM 2 DÒNG NÀY ---
+                // Ghi log (Timeline) cho hành động "Thanh toán thành công"
+                auditLogService.logActivity(
+                        order,
+                        "Hệ thống", // 1. Truyền String "Hệ thống"
+                        "Thanh toán VNPAY thành công (IPN).", // 2. Mô tả
+                        "paymentStatus", // 3. Field
+                        PaymentStatus.PENDING.name(), // 4. Old
+                        PaymentStatus.PAID.name() // 5. New
+                );
+
+                // Log 2: Xác nhận
+                auditLogService.logActivity(
+                        order,
+                        "Hệ thống", // 1. Truyền String "Hệ thống"
+                        "Đơn hàng tự động xác nhận sau khi thanh toán VNPAY.", // 2. Mô tả
+                        "orderStatus", // 3. Field
+                        OrderStatus.PENDING.name(), // 4. Old
+                        OrderStatus.CONFIRMED.name() // 5. New
+                );
+                // --- KẾT THÚC THÊM ---
                 try {
                     subtractStockForOrder(order);
                 } catch (BusinessRuleException e) {
                     order.setOrderStatus(OrderStatus.PENDING);
                     System.err.println("--- LOG TEST IPN WARNING: Trừ kho thất bại (Oversale) ---");
                 }
+
+                // 2. --- THÊM PHẦN NÀY ---
+                // CẬP NHẬT PAYMENT (Rất quan trọng cho hoàn tiền)
+                Payment payment = paymentRepository.findByOrderIdAndStatus(order.getId(), PaymentStatus.PENDING)
+                        .orElse(null); // Tìm payment PENDING
+
+                if (payment != null) {
+                    payment.setStatus(PaymentStatus.PAID);
+
+                    // LƯU LẠI 2 THÔNG TIN SỐNG CÒN ĐỂ HOÀN TIỀN
+                    payment.setTransactionId(vnp_TransactionNo); // vnp_TransactionNo
+                    payment.setVnpTxnRef(vnp_TxnRef); // LƯU LẠI vnp_TxnRef
+                    // Chuyển đổi vnp_PayDate (yyyyMMddHHmmss) sang LocalDateTime
+                    try {
+                        DateTimeFormatter vnpFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+                        LocalDateTime paidTime = LocalDateTime.parse(vnp_PayDate, vnpFormatter);
+                        payment.setPaidAt(paidTime); // vnp_PayDate
+                    } catch (Exception e) {
+                        payment.setPaidAt(LocalDateTime.now()); // Fallback
+                    }
+
+                    paymentRepository.save(payment);
+                }
+                // --- KẾT THÚC PHẦN THÊM ---
+
             } else {
                 order.setPaymentStatus(PaymentStatus.FAILED);
+
+                // --- THÊM PHẦN NÀY ---
+                // Nếu VNPAY báo lỗi, cũng cập nhật Payment FAILED
+                Payment payment = paymentRepository.findByOrderIdAndStatus(order.getId(), PaymentStatus.PENDING)
+                        .orElse(null);
+                if (payment != null) {
+                    payment.setStatus(PaymentStatus.FAILED);
+                    payment.setTransactionId(vnp_TransactionNo); // Lưu lại mã giao dịch (lỗi)
+                    paymentRepository.save(payment);
+                }
+                // --- KẾT THÚC PHẦN THÊM ---
             }
 
             orderRepository.save(order);
@@ -486,11 +557,11 @@ public class OrderServiceImpl implements OrderService {
             );
             auditLogService.logActivity(
                     savedOrder,
-                    currentUser,
-                    fullDescription,
-                    "orderStatus",
-                    oldStatus.name(),
-                    newStatus.name()
+                    currentUser, // 1. Truyền User
+                    fullDescription, // 2. Mô tả
+                    "orderStatus", // 3. Field
+                    oldStatus.name(), // 4. Old
+                    newStatus.name() // 5. New
             );
         }
 
@@ -653,7 +724,14 @@ public class OrderServiceImpl implements OrderService {
 
         order.setOrderStatus(OrderStatus.DISPUTE);
         Order savedOrder = orderRepository.save(order);
-
+        auditLogService.logActivity(
+                savedOrder,
+                "Khách hàng", // 1. Truyền String "Khách hàng"
+                "Khách hàng gửi khiếu nại (chưa nhận được hàng).", // 2. Mô tả
+                "orderStatus", // 3. Field
+                OrderStatus.DELIVERED.name(), // 4. Old
+                OrderStatus.DISPUTE.name() // 5. New
+        );
         return mapOrderToDTO(savedOrder);
     }
 
@@ -684,23 +762,39 @@ public class OrderServiceImpl implements OrderService {
         }
 
         Order savedOrder = orderRepository.save(order);
+        auditLogService.logActivity(
+                savedOrder,
+                "Khách hàng", // 1. Truyền String "Khách hàng"
+                "Khách hàng đã hủy đơn hàng.", // 2. Mô tả
+                "orderStatus", // 3. Field
+                currentStatus.name(), // 4. Old (Dùng biến đã khai báo)
+                OrderStatus.CANCELLED.name() // 5. New
+        );
         return mapOrderToDTO(savedOrder);
     }
 
     @Override
     @Transactional
     public OrderResponseDTO userConfirmDelivery(Long orderId, User user) {
+
         // ... (Code của bạn giữ nguyên) ...
         Order order = orderRepository.findByIdAndUser(orderId, user)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng hoặc bạn không có quyền."));
-
+        OrderStatus oldStatus = order.getOrderStatus(); // <-- Lấy trạng thái cũ
         if (order.getOrderStatus() != OrderStatus.DELIVERED && order.getOrderStatus() != OrderStatus.DISPUTE) {
             throw new BusinessRuleException("Đơn hàng chưa được giao.");
         }
 
         order.setOrderStatus(OrderStatus.COMPLETED);
         Order savedOrder = orderRepository.save(order);
-
+        auditLogService.logActivity(
+                savedOrder,
+                "Khách hàng", // 1. Truyền String "Khách hàng"
+                "Khách hàng xác nhận đã nhận hàng.", // 2. Mô tả
+                "orderStatus", // 3. Field
+                oldStatus.name(), // 4. Old
+                OrderStatus.COMPLETED.name() // 5. New
+        );
         return mapOrderToDTO(savedOrder);
     }
 
@@ -764,5 +858,129 @@ public class OrderServiceImpl implements OrderService {
                 .map(this::mapToAuditLogDTO)
                 .collect(Collectors.toList());
     }
+    @Override
+    @Transactional
+    public RefundResponseDTO requestVnpayRefund(
+            Long orderId,
+            HttpServletRequest request,
+            User currentUser
+    ) {
+        // 1. Tìm Order
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + orderId));
 
+        // 2. Tìm bản ghi Payment (đã PAID hoặc PENDING_REFUND)
+        // FE của bạn chỉ gọi khi status là PENDING_REFUND, nhưng ta nên check cả PAID cho chắc
+        Payment payment = paymentRepository
+                .findByOrderIdAndStatusIn(orderId, List.of(PaymentStatus.PAID, PaymentStatus.PENDING_REFUND))
+                .stream()
+                // Ưu tiên cái PAID (nếu có) hoặc PENDING_REFUND
+                .findFirst()
+                .orElseThrow(() -> new BusinessRuleException("Không tìm thấy giao dịch VNPAY hợp lệ cho đơn hàng này."));
+
+        // 3. Kiểm tra các thông tin cần thiết (Đã lưu ở Bước 1)
+        if (payment.getVnpTxnRef() == null ||
+                payment.getTransactionId() == null ||
+                payment.getPaidAt() == null) {
+
+            // Log lỗi này để debug
+            System.err.println("--- LỖI HOÀN TIỀN: Đơn hàng " + orderId + " thiếu thông tin ---");
+            System.err.println("vnpTxnRef: " + payment.getVnpTxnRef());
+            System.err.println("transactionId: " + payment.getTransactionId());
+            System.err.println("paidAt: " + payment.getPaidAt());
+
+            throw new BusinessRuleException("Thiếu thông tin giao dịch VNPAY (TxnRef, TransactionNo, PaidAt). Không thể hoàn tiền. (Có thể đây là đơn hàng cũ?)");
+        }
+
+        // 4. Chuẩn bị dữ liệu cho VNPAY
+        String vnp_TxnRef = payment.getVnpTxnRef();
+        String vnp_TransactionNo = payment.getTransactionId();
+        // Format ngày thanh toán sang yyyyMMddHHmmss
+        String vnp_TransactionDate = payment.getPaidAt().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+        BigDecimal vnp_Amount = payment.getAmount(); // Hoàn toàn bộ số tiền
+        String vnp_CreateBy = currentUser.getEmail(); // Lấy email admin/staff
+        String vnp_IpAddr = vnpayService.getIpAddress(request); // Lấy IP từ request
+
+        // 5. Gọi VnpayService (cỗ máy ở Bước 3)
+        String vnpayResponseJson = vnpayService.requestRefund(
+                vnp_TxnRef,
+                vnp_TransactionNo,
+                vnp_TransactionDate,
+                vnp_Amount,
+                vnp_CreateBy,
+                vnp_IpAddr
+        );
+
+        // 6. Phân tích JSON response từ VNPAY
+        Map<String, String> vnpayResponseMap;
+        try {
+            // Dùng ObjectMapper để chuyển JSON string thành Map
+            vnpayResponseMap = new ObjectMapper().readValue(vnpayResponseJson, new TypeReference<>() {});
+        } catch (Exception e) {
+            throw new BusinessRuleException("Lỗi khi đọc phản hồi từ VNPAY: " + e.getMessage());
+        }
+
+        String vnp_ResponseCode = vnpayResponseMap.get("vnp_ResponseCode");
+        String vnp_Message = vnpayResponseMap.getOrDefault("vnp_Message", "Không có thông báo từ VNPAY");
+
+        // 7. Xử lý kết quả
+        if ("00".equals(vnp_ResponseCode)) {
+            // THÀNH CÔNG
+            order.setPaymentStatus(PaymentStatus.REFUNDED);
+            payment.setStatus(PaymentStatus.REFUNDED);
+
+            orderRepository.save(order);
+            paymentRepository.save(payment);
+
+            // Ghi log (Rất quan trọng cho FE)
+            auditLogService.logActivity(
+                    order,
+                    currentUser, // 1. Truyền User
+                    "Thực hiện hoàn tiền VNPAY thành công. Số tiền: " + vnp_Amount +
+                            ". Mã GD VNPAY: " + vnp_TransactionNo, // 2. Mô tả
+                    "paymentStatus", // 3. Field
+                    PaymentStatus.PENDING_REFUND.name(), // 4. Old
+                    PaymentStatus.REFUNDED.name() // 5. New
+            );
+
+            return RefundResponseDTO.builder()
+                    .orderId(orderId)
+                    .newPaymentStatus(PaymentStatus.REFUNDED)
+                    .message("Hoàn tiền VNPAY thành công!")
+                    .vnpayResponseCode(vnp_ResponseCode)
+                    .build();
+        } else {
+            // THẤT BẠI
+            // Ghi log lỗi
+            auditLogService.logActivity(
+                    order,
+                    currentUser, // 1. Truyền User
+                    "Yêu cầu hoàn tiền VNPAY THẤT BẠI. Mã lỗi: " + vnp_ResponseCode +
+                            ". Lý do: " + vnp_Message, // 2. Mô tả
+                    "paymentStatus", // 3. Field
+                    PaymentStatus.PENDING_REFUND.name(), // 4. Old
+                    PaymentStatus.PENDING_REFUND.name() // 5. New
+            );
+            // Ném lỗi về cho FE (FE của bạn sẽ bắt lỗi này và toast.error)
+            throw new BusinessRuleException("Hoàn tiền VNPAY thất bại: " + vnp_Message + " (Mã lỗi: " + vnp_ResponseCode + ")");
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderAuditLogResponseDTO> getMyOrderHistory(Long orderId, User user) {
+        // 1. KIỂM TRA BẢO MẬT:
+        // Tìm đơn hàng VÀ xác thực nó thuộc về user này
+        Order order = orderRepository.findByIdAndUser(orderId, user)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng hoặc bạn không có quyền truy cập."));
+
+        // 2. TÁI SỬ DỤNG LOGIC:
+        // Lấy lịch sử từ repository (hoặc gọi hàm getOrderHistory(order.getId()) đều được)
+        List<OrderAuditLog> historyEntities =
+                auditLogRepository.findByOrderIdOrderByCreatedAtDesc(order.getId());
+
+        return historyEntities.stream()
+                .map(this::mapToAuditLogDTO)
+                .collect(Collectors.toList());
+    }
 }

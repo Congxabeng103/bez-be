@@ -68,4 +68,12 @@ public interface OrderService {
     // --- THÊM HÀM MỚI NÀY VÀO INTERFACE ---
     VnpayResponseDTO retryVnpayPayment(User user, Long orderId, HttpServletRequest httpServletRequest);
     String handleVnpayIpn(HttpServletRequest request);
+
+    RefundResponseDTO requestVnpayRefund(
+            Long orderId,
+            HttpServletRequest request,
+            User currentUser
+    );
+
+    List<OrderAuditLogResponseDTO> getMyOrderHistory(Long orderId, User user);
 }

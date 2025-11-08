@@ -28,6 +28,7 @@ public class VnpayConfig {
 
     @Value("${vnpay.frontendReturnUrl}")
     private String vnp_FrontendReturnUrl; // Link FE
-
+    @Value("${vnpay.refundApiUrl}") // Nó sẽ khớp với tên mới bạn vừa đổi
+    private String vnp_RefundApiUrl;
 
 }
