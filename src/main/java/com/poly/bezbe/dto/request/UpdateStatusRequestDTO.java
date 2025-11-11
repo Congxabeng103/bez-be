@@ -10,4 +10,5 @@ public class UpdateStatusRequestDTO {
     private OrderStatus newStatus;
 
     private String trackingCode; // (Mã vận đơn, nếu có)
+    private String note;
 }

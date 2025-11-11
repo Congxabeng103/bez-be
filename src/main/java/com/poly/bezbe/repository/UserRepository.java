@@ -47,4 +47,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             @Param("active") boolean active,
             Pageable pageable // Pageable sẽ tự động thêm "order by createdAt desc"
     );
+
+
+    long countByRole(Role role);
 }

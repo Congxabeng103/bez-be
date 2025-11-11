@@ -13,4 +13,7 @@ public class OrderResponseDTO {
     private String customerName;
     private String phone;
     private String address;
+    private String note; // Ghi chú của khách
+    private String cancellationReason; // Lý do hủy
+    private String disputeReason; // Lý do khiếu nại
 }

@@ -36,4 +36,12 @@ public class AdminOrderDetailDTO {
 
     // Danh sách sản phẩm
     private List<AdminOrderItemDTO> items;
+
+    // --- THÊM 2 TRƯỜNG MỚI ---
+    private String cancellationReason;
+    private String disputeReason;
+    // --- KẾT THÚC THÊM ---
+    private boolean stockReturned; // <-- THÊM DÒNG NÀY
+
+
 }

@@ -87,7 +87,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/attributes/**",
                                 "/api/v1/promotions/**",
-                                "/api/v1/coupons/**"
+                                "/api/v1/coupons/**",
+                                "/api/v1/dashboard/**"
                         ).hasAuthority("ADMIN")
 
 

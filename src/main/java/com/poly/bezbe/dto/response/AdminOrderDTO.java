@@ -20,5 +20,6 @@ public class AdminOrderDTO {
     private OrderStatus orderStatus;
     private PaymentStatus paymentStatus;
     private PaymentMethod paymentMethod;
+    private boolean stockReturned; // <-- THÊM DÒNG NÀY
 
 }

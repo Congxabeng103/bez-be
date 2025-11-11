@@ -1,5 +1,7 @@
 package com.poly.bezbe.controller;
 
+import com.poly.bezbe.dto.request.CancelRequestDTO;
+import com.poly.bezbe.dto.request.DisputeRequestDTO;
 import com.poly.bezbe.dto.request.OrderRequestDTO;
 import com.poly.bezbe.dto.request.UpdateStatusRequestDTO;
 import com.poly.bezbe.dto.response.*;
@@ -160,9 +162,10 @@ public class OrderController {
     @PutMapping("/my-orders/{orderId}/cancel")
     public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> userCancelOrder(
             @AuthenticationPrincipal User user,
-            @PathVariable Long orderId
+            @PathVariable Long orderId,
+            @Valid @RequestBody CancelRequestDTO dto
     ) {
-        OrderResponseDTO orderResponse = orderService.userCancelOrder(orderId, user);
+        OrderResponseDTO orderResponse = orderService.userCancelOrder(orderId, user,dto.getReason());
         return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Hủy đơn hàng thành công."));
     }
 
@@ -178,9 +181,10 @@ public class OrderController {
     @PutMapping("/my-orders/{orderId}/report-issue")
     public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> userReportIssue(
             @AuthenticationPrincipal User user,
-            @PathVariable Long orderId
+            @PathVariable Long orderId,
+            @Valid @RequestBody DisputeRequestDTO dto
     ) {
-        OrderResponseDTO orderResponse = orderService.reportDeliveryIssue(orderId, user);
+        OrderResponseDTO orderResponse = orderService.reportDeliveryIssue(orderId, user,dto.getReason());
         return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Gửi khiếu nại thành công."));
     }
     @GetMapping("/my-orders/{orderId}/history")
@@ -192,5 +196,27 @@ public class OrderController {
         List<OrderAuditLogResponseDTO> historyDTOs = orderService.getMyOrderHistory(orderId, user);
 
         return ResponseEntity.ok(ApiResponseDTO.success(historyDTOs, "Tải lịch sử thao tác thành công"));
+    }
+
+    @PutMapping("/{orderId}/confirm-refund")
+    public ResponseEntity<ApiResponseDTO<RefundResponseDTO>> confirmCodRefund(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal User currentUser // Lấy admin/staff đang đăng nhập
+    ) {
+        // Chúng ta sẽ tạo hàm 'confirmCodRefund' trong OrderService
+        RefundResponseDTO refundResponse = orderService.confirmCodRefund(orderId, currentUser);
+
+        return ResponseEntity.ok(ApiResponseDTO.success(
+                refundResponse,
+                refundResponse.getMessage() // Lấy thông báo "Xác nhận hoàn tiền COD thành công!"
+        ));
+    }
+    @PutMapping("/{orderId}/confirm-stock-return")
+    public ResponseEntity<ApiResponseDTO<AdminOrderDTO>> confirmStockReturn(
+            @PathVariable Long orderId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        AdminOrderDTO updatedOrder = orderService.confirmStockReturn(orderId, currentUser);
+        return ResponseEntity.ok(ApiResponseDTO.success(updatedOrder, "Xác nhận nhập kho thành công"));
     }
 }

@@ -80,8 +80,15 @@ public class Order {
     @Column(name = "note", columnDefinition = "NVARCHAR(1000)")
     private String note; // (Lấy từ formData.note)
 
-    // --- KẾT THÚC THÊM ---
+    @Column(name = "cancellation_reason", columnDefinition = "NVARCHAR(500)")
+    private String cancellationReason; // <-- 1. LÝ DO HỦY
 
+    @Column(name = "dispute_reason", columnDefinition = "NVARCHAR(500)")
+    private String disputeReason; // <-- 2. LÝ DO KHIẾU NẠI
+
+
+    @Column(name = "is_stock_returned", columnDefinition = "BIT default 0")
+    private boolean stockReturned = false; // Mặc định là 'chưa hoàn kho'
     @CreationTimestamp
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -95,4 +102,5 @@ public class Order {
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Payment> payments;
+
 }

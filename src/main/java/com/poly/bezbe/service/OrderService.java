@@ -57,10 +57,11 @@ public interface OrderService {
     AdminOrderDetailDTO getMyOrderDetail(User user, Long orderId);
 
     /** User báo cáo vấn đề (khiếu nại) */
-    OrderResponseDTO reportDeliveryIssue(Long orderId, User user); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
 
     /** User tự hủy đơn */
-    OrderResponseDTO userCancelOrder(Long orderId, User user); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
+    OrderResponseDTO userCancelOrder(Long orderId, User user, String reason);
+
+    OrderResponseDTO reportDeliveryIssue(Long orderId, User user, String reason);
 
     /** User xác nhận đã nhận hàng */
     OrderResponseDTO userConfirmDelivery(Long orderId, User user); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
@@ -76,4 +77,7 @@ public interface OrderService {
     );
 
     List<OrderAuditLogResponseDTO> getMyOrderHistory(Long orderId, User user);
+    RefundResponseDTO confirmCodRefund(Long orderId, User currentUser);
+    AdminOrderDTO confirmStockReturn(Long orderId, User currentUser); // <-- THÊM HÀM NÀY
+
 }
