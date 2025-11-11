@@ -52,6 +52,7 @@ public class Variant {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    // --- BẰNG DÒNG NÀY ---
     @OneToMany(mappedBy = "variant", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<VariantValue> attributeValues;
+    private Set<VariantOptionValue> optionValues; // <-- DÒNG MỚI
 }

@@ -633,21 +633,28 @@ public class OrderServiceImpl implements OrderService {
                 .map(item -> {
                     Variant variant = item.getVariant();
 
-                    // Sửa lỗi NullPointerException nếu getAttributeValues() là null
-                    String variantInfo = java.util.Optional.ofNullable(variant.getAttributeValues())
+                    // --- BẮT ĐẦU SỬA LỖI ---
+                    // Sửa lỗi NullPointerException và dùng logic MỚI
+                    String variantInfo = Optional.ofNullable(variant.getOptionValues()) // <-- SỬA (dùng getOptionValues)
                             .orElse(java.util.Collections.emptySet()).stream()
-                            .map(v -> v.getAttributeValue().getAttribute().getName() + ": " + v.getAttributeValue().getValue())
-                            .collect(java.util.stream.Collectors.joining(", "));
+                            .map(vov -> { // vov là VariantOptionValue
+                                // Lấy tên Option (Màu sắc) và tên Value (Đỏ)
+                                String optionName = vov.getOption().getName();
+                                String optionValue = vov.getOptionValue().getValue();
+                                return optionName + ": " + optionValue;
+                            })
+                            .collect(Collectors.joining(", ")); // (Sẽ ra: "Màu sắc: Đỏ, Kích cỡ: S")
+                    // --- KẾT THÚC SỬA LỖI ---
 
                     return AdminOrderItemDTO.builder()
                             .variantId(variant.getId())
                             .productName(variant.getProduct().getName())
-                            .variantInfo(variantInfo)
+                            .variantInfo(variantInfo) // <-- Dữ liệu variantInfo giờ đã đúng
                             .quantity(item.getQuantity())
                             .price(item.getPrice())
                             .imageUrl(variant.getImageUrl() != null ? variant.getImageUrl() : variant.getProduct().getImageUrl())
                             .build();
-                }).collect(java.util.stream.Collectors.toList());
+                }).collect(Collectors.toList());
 
         return AdminOrderDetailDTO.builder()
                 .id(order.getId())
@@ -665,10 +672,9 @@ public class OrderServiceImpl implements OrderService {
                 .couponDiscount(order.getCouponDiscount())
                 .totalAmount(order.getTotalAmount())
                 .items(itemDTOs)
-                // --- CÁC TRƯỜNG ĐÃ THÊM ---
-                .note(order.getNote()) // Ghi chú của khách
-                .cancellationReason(order.getCancellationReason()) // Lý do hủy
-                .disputeReason(order.getDisputeReason()) // Lý do khiếu nại
+                .note(order.getNote())
+                .cancellationReason(order.getCancellationReason())
+                .disputeReason(order.getDisputeReason())
                 .build();
     }
 

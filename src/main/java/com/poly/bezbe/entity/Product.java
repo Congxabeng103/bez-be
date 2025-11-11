@@ -65,5 +65,9 @@ public class Product {
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductReview> reviews;
-
+    // --- THÊM DÒNG NÀY ---
+    // Một sản phẩm có nhiều "options" (Màu sắc, Kích cỡ...)
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("position ASC") // Luôn lấy theo thứ tự (position 1, 2, 3...)
+    private List<ProductOption> options;
 }

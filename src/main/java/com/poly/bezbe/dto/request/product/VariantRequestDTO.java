@@ -21,5 +21,5 @@ public class VariantRequestDTO {
     private String imageUrl;
 
     @NotEmpty(message = "Phải có ít nhất 1 thuộc tính")
-    private List<Long> attributeValueIds; // Danh sách ID của các giá trị (vd: [1, 5] cho "Đỏ" và "XL")
+    private List<Long> optionValueIds; // <-- MỚI
 }

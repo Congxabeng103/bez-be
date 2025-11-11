@@ -1,4 +1,3 @@
-// File: com/poly/bezbe/service/impl/VariantServiceImpl.java
 package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.dto.request.product.VariantBatchRequestDTO;
@@ -6,11 +5,10 @@ import com.poly.bezbe.dto.request.product.VariantRequestDTO;
 import com.poly.bezbe.dto.request.product.VariantUpdateRequestDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.dto.response.product.VariantResponseDTO;
-import com.poly.bezbe.entity.*;
-// SỬA IMPORT NÀY:
+import com.poly.bezbe.entity.*; // Giữ import tổng
 import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
-import com.poly.bezbe.repository.*;
+import com.poly.bezbe.repository.*; // Giữ import tổng
 import com.poly.bezbe.service.VariantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -30,29 +28,34 @@ public class VariantServiceImpl implements VariantService {
 
     private final VariantRepository variantRepository;
     private final ProductRepository productRepository;
-    private final AttributeValueRepository attributeValueRepository;
-    private final VariantValueRepository variantValueRepository;
     private final OrderItemRepository orderItemRepository;
+
+    // --- THÊM 2 REPO MỚI THAY THẾ REPO CŨ ---
+    private final ProductOptionValueRepository productOptionValueRepository;
+    private final VariantOptionValueRepository variantOptionValueRepository;
+
+    // (Xóa AttributeValueRepository và VariantValueRepository)
+
     /**
      * Hàm helper (private) để chuyển Entity sang DTO
      */
     private VariantResponseDTO mapToVariantDTO(Variant variant) {
-        // 1. Lấy thông tin cơ bản
-        Map<String, String> attributesMap = variant.getAttributeValues().stream()
-                .map(VariantValue::getAttributeValue)
+        // 1. LẤY THÔNG TIN THUỘC TÍNH (ĐÃ SỬA)
+        Map<String, String> attributesMap = variant.getOptionValues().stream() // <-- SỬA (từ getAttributeValues)
+                .map(VariantOptionValue::getOptionValue) // <-- SỬA (từ VariantValue::getAttributeValue)
                 .collect(Collectors.toMap(
-                        av -> av.getAttribute().getName(),
-                        AttributeValue::getValue
+                        ov -> ov.getOption().getName(), // Lấy tên Option (Màu sắc)
+                        ProductOptionValue::getValue  // Lấy Value (Đỏ)
                 ));
 
         long orderCount = orderItemRepository.countByVariantId(variant.getId());
 
-        // 2. Lấy Product cha và Promotion
+        // 2. Lấy Product cha và Promotion (Giữ nguyên)
         Product product = variant.getProduct();
         Promotion promotion = (product != null) ? product.getPromotion() : null;
 
-        // 3. Sao chép Logic tính SalePrice (từ ProductServiceImpl)
-        BigDecimal originalPrice = variant.getPrice(); // Dùng giá GỐC của variant
+        // 3. Sao chép Logic tính SalePrice (Giữ nguyên)
+        BigDecimal originalPrice = variant.getPrice();
         BigDecimal salePrice = null;
         Boolean isPromotionStillValid = null;
 
@@ -77,21 +80,21 @@ public class VariantServiceImpl implements VariantService {
         return VariantResponseDTO.builder()
                 .id(variant.getId())
                 .sku(variant.getSku())
-                .price(originalPrice) // Giá gốc
+                .price(originalPrice)
                 .stockQuantity(variant.getStockQuantity())
                 .imageUrl(variant.getImageUrl())
-                .attributes(attributesMap)
+                .attributes(attributesMap) // <-- Dữ liệu đã được map đúng
                 .active(variant.isActive())
                 .orderCount(orderCount)
                 .createdAt(variant.getCreatedAt())
-                .salePrice(salePrice) // <-- 4. Thêm giá giảm
-                .isPromotionStillValid(isPromotionStillValid) // <-- 5. Thêm trạng thái KM
+                .salePrice(salePrice)
+                .isPromotionStillValid(isPromotionStillValid)
                 .build();
     }
-    // --- KẾT THÚC SỬA ---
 
     /**
      * {@inheritDoc}
+     * (Hàm này không thay đổi)
      */
     @Override
     @Transactional(readOnly = true)
@@ -116,6 +119,7 @@ public class VariantServiceImpl implements VariantService {
 
     /**
      * {@inheritDoc}
+     * (Hàm này thay đổi logic)
      */
     @Override
     @Transactional
@@ -125,22 +129,23 @@ public class VariantServiceImpl implements VariantService {
 
         List<Variant> existingVariants = variantRepository.findByProductId(product.getId());
 
-        Set<Set<Long>> existingAttributeCombinations = existingVariants.stream()
-                .map(variant -> variantValueRepository.findAttributeValueIdsByVariantId(variant.getId()))
+        // --- SỬA LOGIC NÀY ---
+        Set<Set<Long>> existingOptionCombinations = existingVariants.stream()
+                .map(variant -> variantOptionValueRepository.findOptionValueIdsByVariantId(variant.getId())) // <-- SỬA REPO
                 .collect(Collectors.toSet());
+        // --- KẾT THÚC SỬA ---
 
         List<Variant> savedVariants = new ArrayList<>();
 
         for (VariantRequestDTO request : batchRequest.getVariants()) {
-            Set<Long> newAttributeValueIds = new HashSet<>(request.getAttributeValueIds());
+            // --- SỬA TÊN BIẾN (DTO đã đổi) ---
+            Set<Long> newOptionValueIds = new HashSet<>(request.getOptionValueIds()); // <-- SỬA TÊN
 
-            if (existingAttributeCombinations.contains(newAttributeValueIds)) {
-                // --- SỬA LỖI EXCEPTION ---
+            if (existingOptionCombinations.contains(newOptionValueIds)) { // <-- SỬA TÊN
                 throw new BusinessRuleException("Lỗi: Đã tồn tại một biến thể với tổ hợp thuộc tính y hệt.");
             }
 
             if (variantRepository.findBySku(request.getSku()).isPresent()) {
-                // --- SỬA LỖI EXCEPTION ---
                 throw new BusinessRuleException("SKU '" + request.getSku() + "' đã tồn tại.");
             }
 
@@ -155,25 +160,35 @@ public class VariantServiceImpl implements VariantService {
 
             Variant savedVariant = variantRepository.save(variant);
 
-            List<AttributeValue> attributeValues = attributeValueRepository.findAllById(request.getAttributeValueIds());
-            if(attributeValues.size() != request.getAttributeValueIds().size()){
-                throw new ResourceNotFoundException("Một hoặc nhiều Attribute Value ID không hợp lệ.");
+            // --- SỬA TOÀN BỘ KHỐI NÀY ---
+            // Tìm các entity ProductOptionValue
+            List<ProductOptionValue> optionValues = productOptionValueRepository.findAllById(request.getOptionValueIds()); // <-- SỬA REPO, TÊN BIẾN
+            if(optionValues.size() != request.getOptionValueIds().size()){
+                throw new ResourceNotFoundException("Một hoặc nhiều Option Value ID không hợp lệ.");
             }
 
-            Set<VariantValue> variantValuesJoin = new HashSet<>();
-            for (AttributeValue av : attributeValues) {
-                VariantValue vv = VariantValue.builder()
+            Set<VariantOptionValue> variantOptionValuesJoin = new HashSet<>(); // <-- SỬA KIỂU
+            for (ProductOptionValue ov : optionValues) { // <-- SỬA KIỂU
+
+                // (Thêm 1 bước kiểm tra an toàn)
+                if (!ov.getOption().getProduct().getId().equals(product.getId())) {
+                    throw new BusinessRuleException("Lỗi: Giá trị thuộc tính không thuộc về sản phẩm này.");
+                }
+
+                VariantOptionValue vov = VariantOptionValue.builder() // <-- SỬA KIỂU
                         .variant(savedVariant)
-                        .attributeValue(av)
+                        .optionValue(ov) // <-- SỬA TRƯỜNG
+                        .option(ov.getOption()) // Thêm link tới Option cha
                         .build();
-                variantValuesJoin.add(vv);
+                variantOptionValuesJoin.add(vov);
             }
-            variantValueRepository.saveAll(variantValuesJoin);
+            variantOptionValueRepository.saveAll(variantOptionValuesJoin); // <-- SỬA REPO
 
-            savedVariant.setAttributeValues(variantValuesJoin);
+            savedVariant.setOptionValues(variantOptionValuesJoin); // <-- SỬA HÀM SET
+            // --- KẾT THÚC SỬA KHỐI ---
+
             savedVariants.add(savedVariant);
-
-            existingAttributeCombinations.add(newAttributeValueIds);
+            existingOptionCombinations.add(newOptionValueIds); // <-- SỬA TÊN
         }
 
         return savedVariants.stream()
@@ -183,6 +198,7 @@ public class VariantServiceImpl implements VariantService {
 
     /**
      * {@inheritDoc}
+     * (Hàm này không thay đổi)
      */
     @Override
     @Transactional
@@ -192,7 +208,6 @@ public class VariantServiceImpl implements VariantService {
 
         if (!variant.getSku().equalsIgnoreCase(request.getSku()) &&
                 variantRepository.findBySkuAndIdNot(request.getSku(), variantId).isPresent()) {
-            // --- SỬA LỖI EXCEPTION ---
             throw new BusinessRuleException("SKU '" + request.getSku() + "' đã tồn tại.");
         }
 
@@ -207,7 +222,8 @@ public class VariantServiceImpl implements VariantService {
     }
 
     /**
-     * {@inheritDoc} (Hàm này là Soft Delete - Giữ nguyên)
+     * {@inheritDoc}
+     * (Hàm này không thay đổi)
      */
     @Override
     @Transactional
@@ -219,28 +235,35 @@ public class VariantServiceImpl implements VariantService {
         variantRepository.save(variant);
     }
 
-    // --- 3. SỬA HÀM NÀY (LÀM THẬT) ---
+    /**
+     * {@inheritDoc}
+     * (Hàm này thay đổi logic)
+     */
     @Override
     @Transactional
     public void permanentDeleteVariant(Long variantId) {
         Variant variant = variantRepository.findById(variantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Biến thể: " + variantId));
 
-        // --- SỬA DÒNG NÀY (LÀM THẬT) ---
         long orderCount = orderItemRepository.countByVariantId(variantId);
 
-        // Logic kiểm tra
         if (orderCount > 0) {
             throw new BusinessRuleException("Không thể xóa vĩnh viễn biến thể đã có trong đơn hàng.");
         }
 
-        // Xóa các bản ghi liên quan trong bảng join `variant_values`
-        variantValueRepository.deleteAll(variant.getAttributeValues());
+        // --- SỬA LOGIC NÀY ---
+        // Xóa các bản ghi liên quan trong bảng join `variant_option_values`
+        variantOptionValueRepository.deleteAll(variant.getOptionValues()); // <-- SỬA
+        // --- KẾT THÚC SỬA ---
 
         // Xóa vĩnh viễn chính biến thể đó
         variantRepository.delete(variant);
     }
-    // --- THÊM HÀM MỚI NÀY (Để xử lý logic tìm variant) ---
+
+    /**
+     * {@inheritDoc}
+     * (Hàm này thay đổi logic)
+     */
     @Override
     @Transactional(readOnly = true)
     public VariantResponseDTO findVariantByAttributes(Long productId, List<Long> valueIds) {
@@ -248,27 +271,25 @@ public class VariantServiceImpl implements VariantService {
             throw new BusinessRuleException("Cần có ít nhất một giá trị thuộc tính.");
         }
 
+        // --- SỬA LOGIC NÀY ---
         // 1. Gọi query mới từ Repository
-        List<Long> variantIds = variantValueRepository.findVariantIdsByExactAttributeValues(
+        List<Long> variantIds = variantOptionValueRepository.findVariantIdsByExactOptionValues( // <-- SỬA REPO
                 productId, valueIds, (long) valueIds.size()
         );
+        // --- KẾT THÚC SỬA ---
 
-        // 2. Xử lý kết quả
+        // 2. Xử lý kết quả (Giữ nguyên)
         if (variantIds.isEmpty()) {
-            // Không tìm thấy (404)
             throw new ResourceNotFoundException("Không tìm thấy biến thể phù hợp.");
         }
         if (variantIds.size() > 1) {
-            // Lỗi logic (Database bị trùng)
-            // (Bạn có thể ném lỗi hoặc chỉ lấy cái đầu tiên)
             System.err.println("Cảnh báo: Tìm thấy " + variantIds.size() + " biến thể trùng lặp.");
         }
 
-        // 3. Lấy (variantId đầu tiên) và map sang DTO
+        // 3. Lấy (variantId đầu tiên) và map sang DTO (Giữ nguyên)
         Variant variant = variantRepository.findById(variantIds.get(0))
                 .orElseThrow(() -> new ResourceNotFoundException("Lỗi: Không tìm thấy ID biến thể đã map."));
 
         return mapToVariantDTO(variant);
     }
-    // --- KẾT THÚC HÀM MỚI ---
 }

@@ -151,10 +151,20 @@ public class CartServiceImpl implements CartService {
     private CartResponseDTO mapCartToDTO(Cart cart) {
         Variant variant = cart.getVariant();
 
-        String attributesDesc = variant.getAttributeValues().stream()
-                .map(v -> v.getAttributeValue().getAttribute().getName() + ": " + v.getAttributeValue().getValue())
-                .sorted()
+        // --- BẮT ĐẦU SỬA LỖI ---
+        // Sửa logic lấy thuộc tính, dùng getOptionValues() mới
+        String attributesDesc = Optional.ofNullable(variant.getOptionValues()) // <-- SỬA
+                .orElse(java.util.Collections.emptySet()).stream()
+                .map(vov -> { // vov là VariantOptionValue
+                    // Lấy tên Option (Màu sắc) và tên Value (Đỏ)
+                    String optionName = vov.getOption().getName();
+                    String optionValue = vov.getOptionValue().getValue();
+                    return optionName + ": " + optionValue;
+                })
+                .sorted() // Sắp xếp A-Z (ví dụ: Kích cỡ: S, Màu sắc: Đỏ)
                 .collect(Collectors.joining(", "));
+        // --- KẾT THÚC SỬA LỖI ---
+
 
         // --- SỬA LOGIC LẤY GIÁ ---
         BigDecimal originalSavedPrice = cart.getPrice(); // 1. Lấy giá ĐÃ LƯU trong DB
@@ -171,7 +181,7 @@ public class CartServiceImpl implements CartService {
                 .productId(variant.getProduct().getId())
                 .productName(variant.getProduct().getName())
                 .imageUrl(variant.getImageUrl() != null ? variant.getImageUrl() : variant.getProduct().getImageUrl())
-                .attributesDescription(attributesDesc)
+                .attributesDescription(attributesDesc) // <-- Dữ liệu đã đúng
 
                 // --- SỬA CÁCH TRẢ VỀ ---
                 .currentPrice(currentLivePrice)   // <-- Giá mới (để tính tiền)

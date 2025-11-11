@@ -1,7 +1,5 @@
 package com.poly.bezbe.dto.response.product;
 
-import com.poly.bezbe.dto.response.product.AttributeResponseDTO;
-import com.poly.bezbe.dto.response.product.ProductResponseDTO;
 import lombok.Builder;
 import lombok.Data;
 
@@ -14,5 +12,5 @@ public class ProductDetailResponseDTO {
     private List<ProductResponseDTO> relatedProducts; // 4 sản phẩm liên quan
 
     // Danh sách các thuộc tính và giá trị (vd: Size: [S, M, L], Color: [Đỏ, Xanh])
-    private List<AttributeResponseDTO> attributes;
+    private List<ProductOptionResponseDTO> attributes; // <-- MỚI
 }
