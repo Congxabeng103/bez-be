@@ -4,15 +4,16 @@ import com.poly.bezbe.dto.response.*;
 import com.poly.bezbe.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // <-- IMPORT
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/dashboard")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // <-- KHÓA TOÀN BỘ
 public class DashboardController {
 
     private final DashboardService dashboardService;

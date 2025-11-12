@@ -9,6 +9,7 @@ import com.poly.bezbe.service.OrderService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // <-- 1. IMPORT
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +22,7 @@ public class PaymentController {
 
     private final OrderService orderService;
 
-    // VNPAY SẼ GỌI VÀO ĐƯỜNG DẪN NÀY (VD: /api/v1/payment/vnpay-return?...)
+    // VNPAY SẼ GỌI VÀO ĐƯỜNG DẪN NÀY (PUBLIC)
     @GetMapping("/vnpay-return")
     public RedirectView handleVnpayReturn(HttpServletRequest request) {
 
@@ -31,7 +32,6 @@ public class PaymentController {
         String orderId = String.valueOf(orderResponse.getOrderId());
 
         // 2. Lấy trạng thái thanh toán HIỆN TẠI từ DB
-        // (Có thể nó vẫn là PENDING, và đó là điều OK)
         String paymentStatus = orderResponse.getPaymentStatus();
 
         // 3. SỬA LOGIC REDIRECT
@@ -44,19 +44,15 @@ public class PaymentController {
             redirectUrl += "&status=failed";
         }
 
-        // Nếu VNPAY không gợi ý lỗi (vnpayStatus == "00" hoặc null),
-        // chúng ta KHÔNG thêm gì cả.
-        // Chúng ta để trang FE (với logic Polling) tự quyết định.
-
         return new RedirectView(redirectUrl);
     }
-    // --- THÊM HÀM MỚI NÀY ---
 
     /**
      * API cho User bấm nút "Thanh toán lại" (cho đơn VNPAY PENDING)
      */
     @PostMapping("/{orderId}/retry-vnpay")
-    @ResponseBody // (Cần thiết vì class là @Controller, nhưng hàm này trả về JSON)
+    @PreAuthorize("isAuthenticated()") // <-- 2. THÊM (Chỉ user đăng nhập)
+    @ResponseBody
     public ResponseEntity<ApiResponseDTO<VnpayResponseDTO>> retryVnpayPayment(
             @AuthenticationPrincipal User user, // Lấy user để bảo mật
             @PathVariable Long orderId,
@@ -67,30 +63,25 @@ public class PaymentController {
 
         return ResponseEntity.ok(ApiResponseDTO.success(vnpayResponse, "Tạo link thanh toán lại thành công"));
     }
-    // --- THÊM API IPN MỚI ---
+
     /**
-     * Luồng 2: VNPAY TỰ GỌI VỀ (Server-to-Server)
-     * Đây là API quan trọng nhất để xác nhận thanh toán
+     * Luồng 2: VNPAY TỰ GỌI VỀ (Server-to-Server) (PUBLIC)
      */
     @GetMapping("/vnpay-ipn")
-    @ResponseBody // (Vì class là @Controller nhưng hàm này trả về String/JSON)
+    @ResponseBody
     public ResponseEntity<String> handleVnpayIpn(HttpServletRequest request) {
 
         // Gọi sang OrderService để xử lý logic IPN
-        // Hàm này sẽ:
-        // 1. Xác thực chữ ký
-        // 2. Kiểm tra mã giao dịch
-        // 3. Cập nhật trạng thái đơn hàng (PAID/FAILED)
-        // 4. Trả về mã cho VNPAY
         String vnpayResponse = orderService.handleVnpayIpn(request);
 
         // Trả về response cho VNPAY (Rất quan trọng)
         return ResponseEntity.ok(vnpayResponse);
     }
-    // --- KẾT THÚC API IPN ---
 
+    // NGHIỆP VỤ TIỀN (Hoàn tiền VNPAY)
     @PostMapping("/refund/vnpay/{orderId}")
-    @ResponseBody // (Rất quan trọng vì class là @Controller, nhưng hàm này trả JSON)
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // <-- 3. KHÓA (STAFF không được)
+    @ResponseBody
     public ResponseEntity<ApiResponseDTO<RefundResponseDTO>> requestVnpayRefund(
             @PathVariable Long orderId,
             @AuthenticationPrincipal User currentUser, // Lấy admin/staff đang đăng nhập
@@ -101,7 +92,7 @@ public class PaymentController {
             return ResponseEntity.status(401).body(ApiResponseDTO.error("Bạn cần đăng nhập để thực hiện hành động này."));
         }
 
-        // 2. Gọi service (hàm đã code ở Bước 4)
+        // 2. Gọi service
         RefundResponseDTO refundResponse = orderService.requestVnpayRefund(
                 orderId,
                 request,

@@ -2,21 +2,22 @@ package com.poly.bezbe.controller;
 
 import com.poly.bezbe.dto.request.AddToCartRequestDTO;
 import com.poly.bezbe.dto.request.UpdateCartRequestDTO;
-import com.poly.bezbe.dto.response.ApiResponseDTO; // (Giả sử bạn đã có DTO wrapper này)
+import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.CartResponseDTO;
 import com.poly.bezbe.entity.User;
 import com.poly.bezbe.service.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // <-- IMPORT
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/cart")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()") // <-- KHÓA TOÀN BỘ CONTROLLER
 public class CartController {
 
     private final CartService cartService;

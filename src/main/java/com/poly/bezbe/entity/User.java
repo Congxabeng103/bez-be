@@ -2,18 +2,27 @@ package com.poly.bezbe.entity;
 
 import com.poly.bezbe.enums.AuthProvider;
 import com.poly.bezbe.enums.Gender;
-import com.poly.bezbe.enums.Position; // <-- 1. Import Enum Position
+// (Đã xóa import Position không dùng)
 import com.poly.bezbe.enums.Role;
 import jakarta.persistence.*;
+// --- THÊM CÁC IMPORT VALIDATION ---
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Size;
+// ---
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import java.time.LocalDate;
-import java.time.LocalDateTime; // <-- 2. Import LocalDateTime
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set; // <-- 1. THÊM IMPORT Set
+import java.util.stream.Collectors; // <-- 2. THÊM IMPORT Collectors
 
 @Entity
 @Table(name = "users")
@@ -24,47 +33,51 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Email không được để trống") // <-- Thêm
+    @Email(message = "Email không đúng định dạng") // <-- Thêm
+    @Size(max = 100, message = "Email không quá 100 ký tự") // <-- Thêm
     @Column(nullable = false, unique = true, length = 100)
     private String email;
 
-    @Column(length = 255)
+    @Column(length = 255) // (Password là nullable, rất đúng, vì dùng cho Social login)
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
-    private Role role;
+    @Enumerated(EnumType.STRING) // Thêm lại dòng này
+    @Column(nullable = false, length = 10) // Thêm lại dòng này
+    private Role role; // <-- DÙNG LẠI DÒNG NÀY
 
+    @NotNull // <-- Thêm
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 10)
     private AuthProvider provider;
 
+    @NotBlank(message = "Tên không được để trống") // <-- Thêm
+    @Size(max = 50, message = "Tên không quá 50 ký tự") // <-- Thêm
     @Column(nullable = false, columnDefinition = "NVARCHAR(50)")
     private String firstName;
 
-    @Column(columnDefinition = "NVARCHAR(50)")
+    @NotBlank(message = "Họ không được để trống") // <-- Thêm
+    @Size(max = 50, message = "Họ không quá 50 ký tự") // <-- Thêm
+    @Column(nullable = false, columnDefinition = "NVARCHAR(50)") // <-- Sửa: Thêm nullable=false
     private String lastName;
 
     @Column
     private String avatar;
 
-    // --- 3. CÁC TRƯỜNG ĐÃ CẬP NHẬT ---
-    @Column(length = 15, unique = true) // SĐT có thể là unique
+    @Size(max = 15, message = "SĐT không quá 15 ký tự") // <-- Thêm
+    @Column(length = 15, unique = true)
     private String phone;
 
-    @Enumerated(EnumType.STRING) // Lưu tên Enum (vd: "QUAN_TRI_VIEN")
-    @Column(columnDefinition = "NVARCHAR(100)")
-    private Position position; // Đổi String thành Enum Position
-    // --- KẾT THÚC CẬP NHẬT ---
-// --- THÊM 2 TRƯỜNG NÀY ---
     @Enumerated(EnumType.STRING)
     @Column(length = 10)
     private Gender gender;
 
+    @Past(message = "Ngày sinh phải ở trong quá khứ") // <-- Thêm
     @Column
     private LocalDate dob; // Ngày sinh
-    // --- KẾT THÚC THÊM ---
+
     @Builder.Default
-    @Column(nullable = false, columnDefinition = "bit default 0") // Thêm default 0
+    @Column(nullable = false, columnDefinition = "bit default 0")
     private boolean isActive = false;
 
     @Column
@@ -73,18 +86,16 @@ public class User implements UserDetails {
     @Column
     private String activationToken;
 
-    // --- 4. NGÀY THAM GIA ---
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-    // --- KẾT THÚC THÊM ---
 
-    // (Giả sử bạn đã có @UpdateTimestamp cho 'updated_at' nếu cần)
-
+    // --- SỬA LẠI HÀM GETAUTHORITIES ĐỂ DÙNG SET<ROLE> ---
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(role.name()));
+        return List.of(new SimpleGrantedAuthority(role.name())); // <-- DÙNG LẠI DÒNG NÀY
     }
+    // --- KẾT THÚC SỬA ---
 
     @Override
     public String getUsername() { return email; }
@@ -101,5 +112,4 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() { return this.isActive; }
 
-    // (Các liên kết @OneToMany đến Order, Review... nếu có)
 }

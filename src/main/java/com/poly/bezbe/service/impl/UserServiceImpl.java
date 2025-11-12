@@ -1,4 +1,4 @@
-package com.poly.bezbe.service.impl; // <-- Chú ý package con 'impl'
+package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.dto.request.EmployeeRequestDTO;
 import com.poly.bezbe.dto.request.UserRequestDTO;
@@ -8,13 +8,13 @@ import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.dto.response.UserResponseDTO;
 import com.poly.bezbe.entity.User;
 import com.poly.bezbe.enums.Gender;
-import com.poly.bezbe.enums.Position;
+// import com.poly.bezbe.enums.Position; // <-- XÓA
 import com.poly.bezbe.enums.Role;
 import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.UserRepository;
-import com.poly.bezbe.service.UserService; // <-- Import interface
+import com.poly.bezbe.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,33 +30,31 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Service // <-- @Service được đặt ở đây
+@Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService { // <-- Implement interface
+public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     // private final OrderRepository orderRepository;
 
-    // --- SỬA 1: HÀM MAP DTO (Đảo ngược tên) ---
-    // (Hàm private này là chi tiết nội bộ, chỉ nằm ở Impl)
     private UserResponseDTO mapToUserDTO(User user) {
         Integer totalOrders = 0; // (Logic nghiệp vụ)
         BigDecimal totalSpent = BigDecimal.ZERO; // (Logic nghiệp vụ)
 
-        String fullName = (user.getLastName() != null ? user.getLastName() : "") // 1. Họ (Đỗ Thành)
+        String fullName = (user.getLastName() != null ? user.getLastName() : "")
                 + " " +
-                (user.getFirstName() != null ? user.getFirstName() : ""); // 2. Tên (Công)
+                (user.getFirstName() != null ? user.getFirstName() : "");
 
         return UserResponseDTO.builder()
                 .id(user.getId())
-                .name(fullName.trim()) // Kết quả: "Đỗ Thành Công"
+                .name(fullName.trim())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .avatar(user.getAvatar())
                 .role(user.getRole().name())
-                .position(user.getPosition() != null ? user.getPosition().name() : null)
+                // .position(user.getPosition() != null ? user.getPosition().name() : null) // <-- XÓA
                 .joinDate(user.getCreatedAt())
                 .active(user.isActive())
                 .totalOrders(totalOrders)
@@ -66,7 +64,6 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
                 .build();
     }
 
-    // (Hàm private này là chi tiết nội bộ, chỉ nằm ở Impl)
     private Page<User> findUsers(Role role, List<Role> roles, Pageable pageable, String searchTerm, String status) {
         boolean searching = searchTerm != null && !searchTerm.isBlank();
         boolean activeFilter = !"INACTIVE".equalsIgnoreCase(status);
@@ -83,7 +80,7 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<UserResponseDTO> getCustomers(Pageable pageable, String searchTerm, String status) {
         Page<User> userPage = findUsers(Role.USER, null, pageable, searchTerm, status);
@@ -97,10 +94,11 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<UserResponseDTO> getEmployees(Pageable pageable, String searchTerm, String status) {
-        List<Role> employeeRoles = List.of(Role.ADMIN, Role.STAFF);
+        // --- SỬA LOGIC: Thêm MANAGER vào danh sách ---
+        List<Role> employeeRoles = List.of(Role.ADMIN, Role.STAFF, Role.MANAGER);
         Page<User> userPage = findUsers(null, employeeRoles, pageable, searchTerm, status);
         List<UserResponseDTO> dtos = userPage.getContent().stream()
                 .map(this::mapToUserDTO)
@@ -112,7 +110,7 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public UserResponseDTO updateUser(Long id, UserRequestDTO request) {
         User user = userRepository.findById(id)
@@ -129,15 +127,17 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
         user.setPhone(request.getPhone());
         user.setActive(request.isActive());
 
-        if (request.getPosition() != null && !request.getPosition().isEmpty()) {
-            try {
-                user.setPosition(Position.valueOf(request.getPosition()));
-            } catch (IllegalArgumentException e) {
-                throw new ResourceNotFoundException("Chức vụ không hợp lệ: " + request.getPosition());
-            }
-        } else {
-            user.setPosition(null);
-        }
+        // --- XÓA LOGIC POSITION ---
+        // if (request.getPosition() != null && !request.getPosition().isEmpty()) {
+        //     try {
+        //         user.setPosition(Position.valueOf(request.getPosition()));
+        //     } catch (IllegalArgumentException e) {
+        //         throw new ResourceNotFoundException("Chức vụ không hợp lệ: " + request.getPosition());
+        //     }
+        // } else {
+        //     user.setPosition(null);
+        // }
+        // --- KẾT THÚC XÓA ---
 
         User updated = userRepository.save(user);
         return mapToUserDTO(updated);
@@ -146,7 +146,7 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public UserResponseDTO updateProfile(String userEmail, UpdateProfileRequestDTO request) {
         User user = userRepository.findByEmail(userEmail)
@@ -178,7 +178,7 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public void deleteUser(Long id) {
         User user = userRepository.findById(id)
@@ -190,8 +190,8 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
-    @Transactional // Thêm Transactional vì có save
+    @Override
+    @Transactional
     public String updatePassword(UpdatePasswordRequestDTO request) {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         User currentUser = userRepository.findByEmail(userEmail)
@@ -208,7 +208,7 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public UserResponseDTO createEmployee(EmployeeRequestDTO request) {
         if (userRepository.existsByEmail(request.getEmail().trim())) {
@@ -227,12 +227,15 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
         if (role == Role.USER) {
             throw new BusinessRuleException("Không thể tạo Khách hàng (USER) từ API này.");
         }
-        Position position;
-        try {
-            position = Position.valueOf(request.getPosition().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new ResourceNotFoundException("Chức vụ (Position) không hợp lệ: " + request.getPosition());
-        }
+
+        // --- XÓA LOGIC POSITION ---
+        // Position position;
+        // try {
+        //     position = Position.valueOf(request.getPosition().toUpperCase());
+        // } catch (IllegalArgumentException e) {
+        //     throw new ResourceNotFoundException("Chức vụ (Position) không hợp lệ: " + request.getPosition());
+        // }
+        // --- KẾT THÚC XÓA ---
 
         User employee = User.builder()
                 .firstName(firstName)
@@ -241,7 +244,7 @@ public class UserServiceImpl implements UserService { // <-- Implement interface
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .role(role)
-                .position(position)
+                // .position(position) // <-- XÓA
                 .provider(com.poly.bezbe.enums.AuthProvider.LOCAL)
                 .isActive(true)
                 .build();

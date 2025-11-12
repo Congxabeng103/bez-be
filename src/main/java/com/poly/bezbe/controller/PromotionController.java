@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // <-- 1. IMPORT
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -23,14 +24,15 @@ public class PromotionController {
 
     private final PromotionService promotionService;
 
-    // SỬA HÀM NÀY (Thêm @RequestParam 'status')
+    // Lấy danh sách cho trang Admin (SỬA: Thêm 'STAFF')
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')") // <-- 2. ĐÃ THÊM 'STAFF'
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<PromotionResponseDTO>>> getAllPromotions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "createdAt,desc") String sort,
-            @RequestParam(defaultValue = "ACTIVE") String status // <-- THÊM DÒNG NÀY
+            @RequestParam(defaultValue = "ACTIVE") String status
     ) {
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
@@ -40,21 +42,26 @@ public class PromotionController {
         return ResponseEntity.ok(ApiResponseDTO.success(promotionPage, "Lấy danh sách khuyến mãi thành công"));
     }
 
-    // Lấy danh sách rút gọn (cho Product form)
+    // Lấy danh sách rút gọn (Cả 3 vai trò - cho trang sản phẩm)
     @GetMapping("/brief")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')") // <-- 3. (Giữ nguyên, đã đúng)
     public ResponseEntity<ApiResponseDTO<List<PromotionBriefDTO>>> getPromotionBriefList() {
         List<PromotionBriefDTO> promotions = promotionService.getPromotionBriefList();
         return ResponseEntity.ok(ApiResponseDTO.success(promotions, "Lấy danh sách tóm tắt khuyến mãi thành công"));
     }
 
+    // Tạo mới (Chỉ Manager / Admin)
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // <-- 4. (Giữ nguyên)
     public ResponseEntity<ApiResponseDTO<PromotionResponseDTO>> createPromotion(
             @Valid @RequestBody PromotionRequestDTO request) {
         PromotionResponseDTO newPromotion = promotionService.createPromotion(request);
         return new ResponseEntity<>(ApiResponseDTO.success(newPromotion, "Tạo khuyến mãi thành công"), HttpStatus.CREATED);
     }
 
+    // Cập nhật (Chỉ Manager / Admin)
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // <-- 5. (Giữ nguyên)
     public ResponseEntity<ApiResponseDTO<PromotionResponseDTO>> updatePromotion(
             @PathVariable Long id,
             @Valid @RequestBody PromotionRequestDTO request) {
@@ -62,8 +69,9 @@ public class PromotionController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedPromotion, "Cập nhật khuyến mãi thành công"));
     }
 
-    // Sửa: Gọi Soft Delete
+    // Ngừng hoạt động (Chỉ Manager / Admin)
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // <-- 6. (Giữ nguyên)
     public ResponseEntity<ApiResponseDTO<Object>> deletePromotion(@PathVariable Long id) {
         promotionService.deletePromotion(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động khuyến mãi thành công"));

@@ -19,6 +19,7 @@ import com.poly.bezbe.entity.OrderAuditLog;
 import com.poly.bezbe.enums.OrderStatus;
 import com.poly.bezbe.enums.PaymentMethod;
 import com.poly.bezbe.enums.PaymentStatus;
+import com.poly.bezbe.enums.Role;
 import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.*;
@@ -27,6 +28,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -122,7 +124,6 @@ public class OrderServiceImpl implements OrderService {
                 null, // 4. Old
                 OrderStatus.PENDING.name() // 5. New
         );
-        emailService.sendOrderConfirmationEmail(savedOrder);
 
         // --- KẾT THÚC THÊM ---
         // 6. Chuyển CartItems -> OrderItems (Không trừ kho)
@@ -151,6 +152,7 @@ public class OrderServiceImpl implements OrderService {
         // 9. Xử lý thanh toán
         if (request.getPaymentMethod() == PaymentMethod.COD) {
             createPaymentRecord(savedOrder, PaymentStatus.PENDING, null);
+            emailService.sendOrderConfirmationEmail(savedOrder);
             return mapOrderToDTO(savedOrder);
         } else if (request.getPaymentMethod() == PaymentMethod.VNPAY) {
             String paymentUrl = vnpayService.createPaymentUrl(httpServletRequest, savedOrder.getId(), savedOrder.getTotalAmount());
@@ -430,10 +432,32 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + orderId));
 
-        OrderStatus newStatus = request.getNewStatus(); // <-- LỖI 1: Sửa getNewStatus() thành getStatus()
+        // SỬA LỖI 1: Dùng getStatus() theo ghi chú của bạn
+        OrderStatus newStatus = request.getNewStatus();
         OrderStatus oldStatus = order.getOrderStatus();
         String adminNote = request.getNote();
         String logDescription = null; // Mô tả đầy đủ cho log
+
+        // --- BẮT ĐẦU THÊM PHÂN QUYỀN ---
+        // 1. Kiểm tra quyền HỦY ĐƠN (Cancel)
+        if (newStatus == OrderStatus.CANCELLED &&
+                (oldStatus == OrderStatus.CONFIRMED || oldStatus == OrderStatus.SHIPPING || oldStatus == OrderStatus.DELIVERED || oldStatus == OrderStatus.DISPUTE)) {
+
+            // Nếu hủy đơn đã GIAO, chỉ Manager/Admin được làm
+            // (Giả sử Enum Role của bạn là Role.STAFF)
+            if (currentUser.getRole() == Role.STAFF) {
+                // Ném lỗi 403 (Access Denied)
+                throw new AccessDeniedException("Nhân viên không có quyền hủy đơn hàng đã giao hoặc đang khiếu nại.");
+            }
+        }
+
+        // 2. (Tùy chọn) Kiểm tra quyền HOÀN TÁC (Pending)
+        if (newStatus == OrderStatus.PENDING) {
+            if (currentUser.getRole() == Role.STAFF) {
+                throw new AccessDeniedException("Nhân viên không có quyền hoàn tác đơn hàng về 'Chờ xác nhận'.");
+            }
+        }
+        // --- KẾT THÚC THÊM PHÂN QUYỀN ---
 
         if (oldStatus == OrderStatus.COMPLETED || oldStatus == OrderStatus.CANCELLED) {
             throw new BusinessRuleException("Không thể cập nhật trạng thái cho đơn hàng đã hoàn tất hoặc đã hủy.");
@@ -469,7 +493,7 @@ public class OrderServiceImpl implements OrderService {
                 if (oldStatus == OrderStatus.CONFIRMED) {
                     order.setOrderStatus(OrderStatus.SHIPPING);
                     logDescription = "Bắt đầu giao hàng.";
-                    // LỖI 2: Thêm logic note vào log
+                    // SỬA LỖI 2: Thêm logic note vào log
                     if (adminNote != null && !adminNote.isBlank()) {
                         logDescription += " Mã vận đơn: " + adminNote;
                     }
@@ -501,36 +525,37 @@ public class OrderServiceImpl implements OrderService {
                 if (adminNote == null || adminNote.isBlank()) {
                     throw new BusinessRuleException("Admin hủy đơn bắt buộc phải nhập lý do.");
                 }
+
+                // (Logic "Smart Stock" của bạn đã đúng)
                 if (oldStatus == OrderStatus.CONFIRMED) {
                     // Hàng CHƯA rời kho. Tự động hoàn kho.
                     returnStockForOrder(order);
-                    order.setStockReturned(true); // <-- SỬA 1: Đã hoàn
-                    logDescription = "Đơn hàng bị hủy... ĐÃ TỰ ĐỘNG HOÀN KHO. Lý do: " + adminNote;
+                    order.setStockReturned(true); // <-- Đã hoàn
+                    logDescription = "Đơn hàng bị hủy. ĐÃ TỰ ĐỘNG HOÀN KHO. Lý do: " + adminNote;
 
                 } else if (oldStatus == OrderStatus.PENDING) {
                     // Đơn PENDING (chưa trừ kho). Không cần hoàn kho.
-                    order.setStockReturned(true); // <-- SỬA 2: Đánh dấu là "không cần"
-                    logDescription = "Đơn hàng bị hủy... (Không cần hoàn kho). Lý do: " + adminNote;
+                    order.setStockReturned(true); // <-- Đánh dấu là "không cần"
+                    logDescription = "Đơn hàng bị hủy. (Không cần hoàn kho). Lý do: " + adminNote;
 
                 } else {
                     // Bao gồm SHIPPING, DELIVERED, DISPUTE
                     // Hàng ĐÃ rời kho.
-                    order.setStockReturned(false); // <-- SỬA 3: ĐÁNH DẤU LÀ "CHƯA HOÀN" (CHỜ BẤM NÚT)
-                    logDescription = "Đơn hàng bị hủy/trả hàng... (CHỜ NHẬP KHO). Lý do: " + adminNote;
+                    order.setStockReturned(false); // <-- ĐÁNH DẤU LÀ "CHƯA HOÀN" (CHỜ BẤM NÚT)
+                    logDescription = "Đơn hàng bị hủy/trả hàng. (CHỜ NHẬP KHO). Lý do: " + adminNote;
                 }
 
                 order.setOrderStatus(OrderStatus.CANCELLED);
                 order.setCancellationReason(adminNote); // LƯU LÝ DO HỦY
 
-                logDescription = "Đơn hàng bị hủy bởi Admin. Lý do: " + adminNote; // LỖI 3: Log description sạch
-
+                // SỬA LỖI 3: Không ghi đè logDescription, chỉ nối chuỗi
                 if (order.getPaymentStatus() == PaymentStatus.PAID) {
                     order.setPaymentStatus(PaymentStatus.PENDING_REFUND);
-                    logDescription += " Chuyển sang chờ hoàn tiền.";
+                    logDescription += " Chuyển sang chờ hoàn tiền."; // <-- Nối chuỗi
                 }
 
-                // LỖI 4: Truyền 'logDescription' (chứa lý do) vào mail
-                emailService.sendOrderCancellationEmail(order, logDescription);
+                // SỬA LỖI 4: Truyền lý do (adminNote) vào mail, không phải logDescription
+                emailService.sendOrderCancellationEmail(order, adminNote);
                 break;
             case COMPLETED:
                 if (oldStatus == OrderStatus.DELIVERED || oldStatus == OrderStatus.DISPUTE) {
@@ -1082,8 +1107,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public AdminOrderDTO confirmStockReturn(Long orderId, User currentUser) {
+        if (currentUser.getRole() == Role.STAFF) {
+            throw new AccessDeniedException("Nhân viên không có quyền xác nhận hoàn kho.");
+        }
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy đơn hàng: " + orderId));
+        OrderStatus oldStatus = order.getOrderStatus();
 
         // 1. Kiểm tra nghiệp vụ
         if (order.getOrderStatus() != OrderStatus.CANCELLED) {
@@ -1107,7 +1136,7 @@ public class OrderServiceImpl implements OrderService {
         auditLogService.logActivity(
                 savedOrder, currentUser,
                 "Admin kho xác nhận đã nhận hàng trả và nhập kho.",
-                "stock", "N/A", "RETURNED"
+                "stock", oldStatus.name(), "RETURNED"
         );
 
         return mapToAdminOrderDTO(savedOrder);

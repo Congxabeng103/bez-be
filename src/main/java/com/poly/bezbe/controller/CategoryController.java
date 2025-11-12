@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // <-- IMPORT
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -22,41 +23,44 @@ public class CategoryController {
 
     private final CategoryService categoryService;
 
-    // --- SỬA HÀM NÀY (Thêm @RequestParam 'status') ---
+    // Lấy danh sách cho trang Admin (Cả 3 vai trò đều được xem)
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<CategoryResponseDTO>>> getAllCategories(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "name,asc") String sort,
-            @RequestParam(defaultValue = "ALL") String status // <-- THÊM DÒNG NÀY (Mặc định là ALL)
+            @RequestParam(defaultValue = "ALL") String status
     ) {
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
 
-        // Truyền 'status' vào service
         PageResponseDTO<CategoryResponseDTO> categoryPage = categoryService.getAllCategories(pageable, search, status);
         return ResponseEntity.ok(ApiResponseDTO.success(categoryPage, "Lấy danh sách danh mục thành công"));
     }
 
-    // GET Brief (Lấy tất cả, cho dropdown)
+    // GET Brief (Public - Cho phép tất cả)
     @GetMapping("/all-brief")
+    @PreAuthorize("permitAll()") // (Hoặc để trống nếu SecurityConfig đã mở)
     public ResponseEntity<ApiResponseDTO<List<CategoryResponseDTO>>> getAllCategoriesBrief() {
         List<CategoryResponseDTO> categories = categoryService.getAllCategoriesBrief();
         return ResponseEntity.ok(ApiResponseDTO.success(categories, "Lấy danh sách tóm tắt danh mục thành công"));
     }
 
-    // POST (Tạo mới)
+    // POST (Tạo mới - Chỉ Manager / Admin)
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<CategoryResponseDTO>> createCategory(
             @Valid @RequestBody CategoryRequestDTO request) {
         CategoryResponseDTO newCategory = categoryService.createCategory(request);
         return new ResponseEntity<>(ApiResponseDTO.success(newCategory, "Tạo danh mục thành công"), HttpStatus.CREATED);
     }
 
-    // PUT (Cập nhật)
+    // PUT (Cập nhật - Chỉ Manager / Admin)
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<CategoryResponseDTO>> updateCategory(
             @PathVariable Long id,
             @Valid @RequestBody CategoryRequestDTO request) {
@@ -64,14 +68,17 @@ public class CategoryController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedCategory, "Cập nhật danh mục thành công"));
     }
 
+    // Ngừng hoạt động (Chỉ Manager / Admin)
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<Object>> deleteCategory(@PathVariable Long id) {
-        categoryService.deleteCategory(id); // Hàm này giờ sẽ ẩn hàng loạt
-        // Sửa lại thông báo
+        categoryService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động danh mục và các sản phẩm liên quan thành công"));
     }
-    // --- THÊM ENDPOINT MỚI ---
+
+    // Xóa vĩnh viễn (Chỉ Admin)
     @DeleteMapping("/{id}/permanent")
+    @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteCategory(@PathVariable Long id) {
         categoryService.permanentDeleteCategory(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Đã xóa vĩnh viễn danh mục."));

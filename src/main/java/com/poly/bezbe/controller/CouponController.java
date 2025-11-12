@@ -4,7 +4,7 @@ import com.poly.bezbe.dto.request.CouponRequestDTO;
 import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.CouponResponseDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
-import com.poly.bezbe.entity.Coupon; // <-- 1. THÊM IMPORT NÀY
+import com.poly.bezbe.entity.Coupon;
 import com.poly.bezbe.service.CouponService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,10 +13,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize; // <-- IMPORT
 import org.springframework.web.bind.annotation.*;
-
-import java.math.BigDecimal; // <-- 2. THÊM IMPORT NÀY
-import java.math.RoundingMode; // <-- 3. THÊM IMPORT NÀY
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 @RestController
 @RequestMapping("/api/v1/coupons")
@@ -25,8 +25,9 @@ public class CouponController {
 
     private final CouponService couponService;
 
-    // (Hàm này của bạn đã đúng)
+    // Lấy danh sách cho trang Admin (SỬA: Thêm 'STAFF')
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')") // <-- ĐÃ THÊM 'STAFF'
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<CouponResponseDTO>>> getAllCoupons(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
@@ -42,16 +43,18 @@ public class CouponController {
         return ResponseEntity.ok(ApiResponseDTO.success(couponPage, "Lấy danh sách coupon thành công"));
     }
 
-    // (Hàm này của bạn đã đúng)
+    // Tạo mới (Chỉ Manager / Admin)
     @PostMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<CouponResponseDTO>> createCoupon(
             @Valid @RequestBody CouponRequestDTO request) {
         CouponResponseDTO newCoupon = couponService.createCoupon(request);
         return new ResponseEntity<>(ApiResponseDTO.success(newCoupon, "Tạo coupon thành công"), HttpStatus.CREATED);
     }
 
-    // (Hàm này của bạn đã đúng)
+    // Cập nhật (Chỉ Manager / Admin)
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<CouponResponseDTO>> updateCoupon(
             @PathVariable Long id,
             @Valid @RequestBody CouponRequestDTO request) {
@@ -59,20 +62,17 @@ public class CouponController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedCoupon, "Cập nhật coupon thành công"));
     }
 
-    // (Hàm này của bạn đã đúng)
+    // Ngừng hoạt động (Chỉ Manager / Admin)
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<Object>> deleteCoupon(@PathVariable Long id) {
         couponService.deleteCoupon(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động coupon thành công"));
     }
 
-    // --- 4. THÊM HÀM MỚI NÀY ĐỂ FRONTEND GỌI ---
-    /**
-     * API cho trang Checkout kiểm tra mã giảm giá
-     * @param code Mã coupon (vd: "SALE100K")
-     * @param subtotal Tạm tính của giỏ hàng (để kiểm tra minOrderAmount)
-     */
+    // API Kiểm tra mã (Dành cho User đã đăng nhập)
     @GetMapping("/validate")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponseDTO<BigDecimal>> validateCouponForCheckout(
             @RequestParam String code,
             @RequestParam BigDecimal subtotal) {
