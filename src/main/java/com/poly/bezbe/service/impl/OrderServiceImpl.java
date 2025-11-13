@@ -392,17 +392,47 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // (Các hàm Admin Page - Giữ nguyên)
+    // Trong file: OrderServiceImpl.java
+
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<AdminOrderDTO> getAdminOrders(Pageable pageable, String status, String searchTerm) {
-        // ... (Code của bạn giữ nguyên) ...
-        OrderStatus statusEnum = null;
-        if (status != null && !status.equalsIgnoreCase("ALL")) {
-            statusEnum = OrderStatus.valueOf(status.toUpperCase());
+
+        Page<Order> orderPage; // Khai báo Page ra ngoài
+
+        // --- BẮT ĐẦU SỬA ĐỔI LOGIC FILTER ---
+
+        // 1. Xử lý Tab "Chờ hoàn tiền" (PENDING_REFUND)
+        if ("PENDING_REFUND".equalsIgnoreCase(status)) {
+            // Bạn sẽ cần tạo hàm này trong OrderRepository
+            // (Xem ví dụ query ở dưới)
+            orderPage = orderRepository.findOrdersPendingRefund(searchTerm, pageable);
+
+            // 2. Xử lý Tab "Chờ nhập kho" (PENDING_STOCK_RETURN) - Yêu cầu của bạn
+        } else if ("PENDING_STOCK_RETURN".equalsIgnoreCase(status)) {
+            // Bạn sẽ cần tạo hàm này trong OrderRepository
+            // (Xem ví dụ query ở dưới)
+            orderPage = orderRepository.findOrdersPendingStockReturn(searchTerm, pageable);
+
+            // 3. Xử lý các Tab cũ (ALL, PENDING, CONFIRMED...)
+        } else {
+            OrderStatus statusEnum = null;
+            if (status != null && !status.equalsIgnoreCase("ALL")) {
+                try {
+                    statusEnum = OrderStatus.valueOf(status.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    // Nếu FE gửi một trạng thái lạ (không phải PENDING_REFUND
+                    // hay PENDING_STOCK_RETURN), thì mặc định trả về ALL
+                    System.err.println("Trạng thái lọc không hợp lệ: " + status + ". Trả về 'ALL'.");
+                    statusEnum = null;
+                }
+            }
+            // Dùng hàm cũ của bạn
+            orderPage = orderRepository.findByAdminFilters(statusEnum, searchTerm, pageable);
         }
+        // --- KẾT THÚC SỬA ĐỔI ---
 
-        Page<Order> orderPage = orderRepository.findByAdminFilters(statusEnum, searchTerm, pageable);
-
+        // Phần mapping giữ nguyên
         List<AdminOrderDTO> dtos = orderPage.getContent().stream()
                 .map(this::mapToAdminOrderDTO)
                 .collect(Collectors.toList());

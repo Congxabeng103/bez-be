@@ -85,4 +85,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "GROUP BY p.name " +
             "ORDER BY SUM(oi.quantity) DESC")
     List<TopSellingProductDTO> findTopSellingProducts(@Param("status") OrderStatus status, Pageable pageable);
+    // 1. Hàm cho tab "Chờ hoàn tiền"
+    @Query("SELECT o FROM Order o WHERE " +
+            "o.paymentStatus = com.poly.bezbe.enums.PaymentStatus.PENDING_REFUND " +
+            "AND (:searchTerm IS NULL OR o.orderNumber LIKE %:searchTerm% OR o.customerName LIKE %:searchTerm% OR o.phone LIKE %:searchTerm%)")
+    Page<Order> findOrdersPendingRefund(String searchTerm, Pageable pageable);
+
+    // 2. Hàm cho tab "Chờ nhập kho"
+    @Query("SELECT o FROM Order o WHERE " +
+            "o.orderStatus = com.poly.bezbe.enums.OrderStatus.CANCELLED " +
+            "AND o.stockReturned = false " + // <-- Lọc các đơn chưa nhập kho
+            "AND (:searchTerm IS NULL OR o.orderNumber LIKE %:searchTerm% OR o.customerName LIKE %:searchTerm% OR o.phone LIKE %:searchTerm%)")
+    Page<Order> findOrdersPendingStockReturn(String searchTerm, Pageable pageable);
 }
