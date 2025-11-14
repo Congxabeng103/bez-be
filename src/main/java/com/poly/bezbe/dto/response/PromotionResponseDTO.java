@@ -17,4 +17,5 @@ public class PromotionResponseDTO {
     private LocalDate endDate;
     private boolean active; // Trạng thái
     private LocalDateTime createdAt;
+    private long productCount; // <-- THÊM TRƯỜNG NÀY (hoặc int)
 }

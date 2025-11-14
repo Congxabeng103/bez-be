@@ -15,14 +15,12 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
 
-    // --- CÁC HÀM XÁC THỰC (GIỮ NGUYÊN) ---
     Optional<User> findByEmail(String email);
     Optional<User> findByActivationToken(String token);
     Optional<User> findByResetPasswordToken(String token);
     boolean existsByEmail(String email);
     boolean existsByEmailAndIdNot(String email, Long id);
 
-    // --- SỬA CÁC QUERY NÀY (ĐÃ XÓA "ORDER BY") ---
 
     // 1. Cho Khách hàng (Role.USER)
     @Query("SELECT u FROM User u WHERE u.role = :role " +

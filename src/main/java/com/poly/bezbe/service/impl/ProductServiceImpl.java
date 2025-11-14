@@ -4,9 +4,10 @@ import com.poly.bezbe.dto.request.product.OptionRequestDTO;
 import com.poly.bezbe.dto.request.product.OptionValueRequestDTO;
 import com.poly.bezbe.dto.request.product.ProductRequestDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
-import com.poly.bezbe.dto.response.product.*; // (Import DTO mới)
+import com.poly.bezbe.dto.response.product.*;
 import com.poly.bezbe.entity.*;
 import com.poly.bezbe.exception.BusinessRuleException;
+import com.poly.bezbe.exception.DuplicateResourceException; // <-- THÊM IMPORT
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.*;
 import com.poly.bezbe.service.ProductService;
@@ -34,12 +35,10 @@ public class ProductServiceImpl implements ProductService {
     private final BrandRepository brandRepository;
     private final PromotionRepository promotionRepository;
     private final VariantRepository variantRepository;
-
-    // Repos mới cho logic Option
     private final ProductOptionRepository productOptionRepository;
     private final ProductOptionValueRepository productOptionValueRepository;
 
-    // (Hàm này đã đúng, không cần sửa)
+    // (Hàm mapToProductDTO đã chuẩn, giữ nguyên)
     private ProductResponseDTO mapToProductDTO(Product product) {
         Category category = product.getCategory();
         Brand brand = product.getBrand();
@@ -108,14 +107,13 @@ public class ProductServiceImpl implements ProductService {
                 .build();
     }
 
-    // (Hàm này đúng)
     private Promotion findPromotionById(Long promotionId) {
         if (promotionId == null) return null;
         return promotionRepository.findById(promotionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Promotion ID: " + promotionId));
     }
 
-    // (Hàm này đúng)
+    // (Hàm getAllProducts đã chuẩn, giữ nguyên)
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<ProductResponseDTO> getAllProducts(
@@ -150,10 +148,17 @@ public class ProductServiceImpl implements ProductService {
         );
     }
 
-    // (Hàm này đúng)
     @Override
     @Transactional
     public ProductResponseDTO createProduct(ProductRequestDTO request) {
+        String name = request.getName().trim();
+
+        // === THÊM KIỂM TRA "CHECK FIRST" ===
+        if (productRepository.existsByNameIgnoreCase(name)) {
+            throw new DuplicateResourceException("Tên sản phẩm '" + name + "' đã tồn tại.");
+        }
+        // === KẾT THÚC THÊM ===
+
         Category category = (request.getCategoryId() != null) ?
                 categoryRepository.findById(request.getCategoryId())
                         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Category ID: " + request.getCategoryId()))
@@ -165,7 +170,7 @@ public class ProductServiceImpl implements ProductService {
         Promotion promotion = findPromotionById(request.getPromotionId());
 
         Product product = Product.builder()
-                .name(request.getName())
+                .name(name) // (Dùng tên đã trim)
                 .description(request.getDescription())
                 .price(BigDecimal.ZERO)
                 .imageUrl(request.getImageUrl())
@@ -176,6 +181,7 @@ public class ProductServiceImpl implements ProductService {
                 .build();
         Product savedProduct = productRepository.save(product);
 
+        // (Logic Option đã chuẩn, giữ nguyên)
         if (request.getOptions() != null && !request.getOptions().isEmpty()) {
             int optionPosition = 1;
             List<ProductOption> newOptions = new ArrayList<>();
@@ -207,13 +213,23 @@ public class ProductServiceImpl implements ProductService {
         return mapToProductDTO(savedProduct);
     }
 
-    // --- SỬA HÀM UPDATE (LOGIC MỚI) ---
     @Override
     @Transactional
     public ProductResponseDTO updateProduct(Long productId, ProductRequestDTO request) {
-        // 1. Tìm Product, Category, Brand, Promotion (Giữ nguyên)
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm: " + productId));
+
+        String name = request.getName().trim();
+
+        // === THÊM KIỂM TRA "CHECK FIRST" ===
+        // "Nếu tên đang thay đổi VÀ tên mới trùng với của người khác"
+        if (!product.getName().equalsIgnoreCase(name) &&
+                productRepository.existsByNameIgnoreCaseAndIdNot(name, productId)) {
+
+            throw new DuplicateResourceException("Tên sản phẩm '" + name + "' đã được sử dụng.");
+        }
+        // === KẾT THÚC THÊM ===
+
         Category category = (request.getCategoryId() != null) ?
                 categoryRepository.findById(request.getCategoryId())
                         .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Category ID: " + request.getCategoryId()))
@@ -224,75 +240,52 @@ public class ProductServiceImpl implements ProductService {
                 : null;
         Promotion promotion = findPromotionById(request.getPromotionId());
 
-        // 2. Cập nhật thông tin cơ bản (Giữ nguyên)
-        product.setName(request.getName());
+        product.setName(name); // (Dùng tên đã trim)
         product.setDescription(request.getDescription());
         product.setImageUrl(request.getImageUrl());
         product.setCategory(category);
         product.setBrand(brand);
         product.setPromotion(promotion);
-        product.setActive(request.isActive()); // <-- CẬP NHẬT TRẠNG THÁI ACTIVE TỪ REQUEST
+        product.setActive(request.isActive());
 
-        // 3. --- LOGIC CẬP NHẬT OPTIONS (ĐÃ SỬA) ---
-
+        // (Logic cập nhật Option đã chuẩn, giữ nguyên)
         List<OptionRequestDTO> requestOptions = request.getOptions();
-
-        // **BƯỚC 1: CHỈ xử lý options NẾU requestOptions không phải là null.**
-        // (Nếu requestOptions là null (ví dụ: từ nút Kích hoạt),
-        //  chúng ta sẽ bỏ qua toàn bộ khối 'if' này và chỉ lưu các thay đổi cơ bản ở trên)
         if (requestOptions != null) {
-
             List<ProductOption> persistentOptions = product.getOptions();
             if (persistentOptions == null) persistentOptions = new ArrayList<>();
-
-            // Đếm số biến thể
             long variantCount = variantRepository.countByProductId(productId);
 
             if (variantCount > 0) {
-                // TRƯỜNG HỢP 1: ĐÃ CÓ BIẾN THỂ
-
+                // (Đã có biến thể)
                 boolean isChanged = false;
                 if (persistentOptions.size() != requestOptions.size()) {
                     isChanged = true;
                 } else {
-                    // (Giả sử FE gửi về đúng thứ tự)
                     for (int i = 0; i < persistentOptions.size(); i++) {
                         ProductOption pOpt = persistentOptions.get(i);
                         OptionRequestDTO rOpt = requestOptions.get(i);
-
                         List<ProductOptionValue> pVals = pOpt.getValues();
                         List<OptionValueRequestDTO> rVals = rOpt.getValues();
-
-                        if (pVals == null) pVals = new ArrayList<>(); // (Thêm check null)
-                        if (rVals == null) rVals = new ArrayList<>(); // (Thêm check null)
-
+                        if (pVals == null) pVals = new ArrayList<>();
+                        if (rVals == null) rVals = new ArrayList<>();
                         if (pVals.size() != rVals.size()) {
                             isChanged = true; break;
                         }
-
                         for (int j = 0; j < pVals.size(); j++) {
                             if (!pVals.get(j).getValue().equals(rVals.get(j).getValue().trim())) {
                                 isChanged = true; break;
                             }
                         }
                         if (isChanged) break;
-
-                        // Nếu cấu trúc không đổi, chỉ cho phép cập nhật tên Option
                         pOpt.setName(rOpt.getName().trim());
                     }
                 }
-
                 if (isChanged) {
                     throw new BusinessRuleException("Không thể thay đổi thuộc tính hoặc giá trị khi sản phẩm đã có biến thể. Vui lòng xóa các biến thể trước.");
                 }
-
             } else {
-                // TRƯỜNG HỢP 2: CHƯA CÓ BIẾN THỂ
-                // --> An toàn để thực hiện logic "Xóa-Tạo lại"
-
-                persistentOptions.clear(); // Xóa cũ
-
-                // Thêm mới từ request
+                // (Chưa có biến thể -> Xóa-Tạo lại)
+                persistentOptions.clear();
                 int optionPosition = 1;
                 for (OptionRequestDTO optionDTO : requestOptions) {
                     ProductOption option = ProductOption.builder()
@@ -300,7 +293,6 @@ public class ProductServiceImpl implements ProductService {
                             .name(optionDTO.getName().trim())
                             .position(optionPosition++)
                             .build();
-
                     int valuePosition = 1;
                     List<ProductOptionValue> newValues = new ArrayList<>();
                     for (OptionValueRequestDTO valueDTO : optionDTO.getValues()) {
@@ -312,20 +304,16 @@ public class ProductServiceImpl implements ProductService {
                         newValues.add(value);
                     }
                     option.setValues(newValues);
-
-                    persistentOptions.add(option); // Thêm vào list đang được quản lý
+                    persistentOptions.add(option);
                 }
             }
-        } // <-- Kết thúc khối 'if (requestOptions != null)'
+        }
 
-        // BƯỚC 4: Lưu lại product (luôn luôn thực hiện)
         Product updatedProduct = productRepository.save(product);
-
-        // BƯỚC 5: Trả về DTO.
         return mapToProductDTO(updatedProduct);
     }
 
-    // (Hàm deleteProduct đúng)
+    // (Hàm deleteProduct đã chuẩn, giữ nguyên)
     @Override
     @Transactional
     public void deleteProduct(Long productId) {
@@ -344,7 +332,6 @@ public class ProductServiceImpl implements ProductService {
         }
     }
 
-    // (Hàm permanentDeleteProduct đúng)
     @Override
     @Transactional
     public void permanentDeleteProduct(Long productId) {
@@ -354,14 +341,18 @@ public class ProductServiceImpl implements ProductService {
         long variantCount = variantRepository.countByProductId(productId);
 
         if (variantCount > 0) {
-            throw new BusinessRuleException("Không thể xóa vĩnh viễn sản phẩm đang có biến thể.");
+            // === SỬA EXCEPTION (Để nhất quán với các Service khác) ===
+            // Ném lỗi logic nghiệp vụ
+            throw new IllegalStateException("Không thể xóa vĩnh viễn sản phẩm đang có " + variantCount + " biến thể.");
+            // =======================================================
         }
 
+        // (Nếu không có biến thể, xóa an toàn)
         productRepository.delete(product);
     }
 
 
-    // (Hàm getProductBriefList đúng)
+    // (Hàm getProductBriefList đã chuẩn, giữ nguyên)
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<ProductBriefDTO> getProductBriefList(Pageable pageable, String searchTerm) {
@@ -386,14 +377,12 @@ public class ProductServiceImpl implements ProductService {
         );
     }
 
-    // (Hàm getProductDetailById đúng, đã sửa ở lần trước)
+    // (Hàm getProductDetailById đã chuẩn, giữ nguyên)
     @Override
     @Transactional(readOnly = true)
     public ProductDetailResponseDTO getProductDetailById(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm với ID: " + productId));
-
-        // (Đã xóa check active ở đây, logic này đúng)
 
         ProductResponseDTO productDTO = mapToProductDTO(product);
 

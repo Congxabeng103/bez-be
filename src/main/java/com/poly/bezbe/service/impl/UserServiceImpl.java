@@ -8,13 +8,15 @@ import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.dto.response.UserResponseDTO;
 import com.poly.bezbe.entity.User;
 import com.poly.bezbe.enums.Gender;
-// import com.poly.bezbe.enums.Position; // <-- XÓA
 import com.poly.bezbe.enums.Role;
 import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
+import com.poly.bezbe.repository.OrderAuditLogRepository;
+import com.poly.bezbe.repository.OrderRepository; // <-- THÊM IMPORT
 import com.poly.bezbe.repository.UserRepository;
 import com.poly.bezbe.service.UserService;
+import jakarta.persistence.EntityNotFoundException; // <-- THÊM IMPORT
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,16 +38,27 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-
-    // private final OrderRepository orderRepository;
-
+    private final OrderRepository orderRepository; // <-- THÊM DEPENDENCY
+    private final OrderAuditLogRepository orderAuditLogRepository; // <-- THÊM DEPENDENCY
     private UserResponseDTO mapToUserDTO(User user) {
-        Integer totalOrders = 0; // (Logic nghiệp vụ)
-        BigDecimal totalSpent = BigDecimal.ZERO; // (Logic nghiệp vụ)
+
+        Integer totalOrders = null;
+        BigDecimal totalSpent = BigDecimal.ZERO; // (Tạm thời)
+        Integer activityCount = null;
 
         String fullName = (user.getLastName() != null ? user.getLastName() : "")
                 + " " +
                 (user.getFirstName() != null ? user.getFirstName() : "");
+
+        // Phân tách logic đếm
+        if (user.getRole() == Role.USER) {
+            // 1. Nếu là KHÁCH HÀNG -> Đếm Đơn hàng
+            totalOrders = orderRepository.countByUserId(user.getId());
+            // TODO: Cập nhật logic tính totalSpent khi có
+        } else {
+            // 2. Nếu là NHÂN VIÊN -> Đếm Hoạt động (Audit Log)
+            activityCount = orderAuditLogRepository.countByStaffId(user.getId());
+        }
 
         return UserResponseDTO.builder()
                 .id(user.getId())
@@ -54,16 +67,21 @@ public class UserServiceImpl implements UserService {
                 .phone(user.getPhone())
                 .avatar(user.getAvatar())
                 .role(user.getRole().name())
-                // .position(user.getPosition() != null ? user.getPosition().name() : null) // <-- XÓA
                 .joinDate(user.getCreatedAt())
                 .active(user.isActive())
-                .totalOrders(totalOrders)
+                .totalOrders(totalOrders) // (Sẽ là null nếu là Nhân viên)
                 .totalSpent(totalSpent)
+                .activityCount(activityCount) // (Sẽ là null nếu là Khách hàng)
                 .gender(user.getGender() != null ? user.getGender().name() : null)
                 .dob(user.getDob() != null ? user.getDob().toString() : null)
                 .build();
     }
+    // === KẾT THÚC SỬA HÀM MAP ===
 
+    // ... (Các hàm getCustomers, getEmployees, updateUser, updateProfile, deleteUser, updatePassword, createEmployee giữ nguyên) ...
+    // (Vì chúng ta đã sửa hàm mapToUserDTO, nên các hàm get... sẽ tự động trả về dữ liệu đúng)
+
+    // (Hàm findUsers đã chuẩn, giữ nguyên)
     private Page<User> findUsers(Role role, List<Role> roles, Pageable pageable, String searchTerm, String status) {
         boolean searching = searchTerm != null && !searchTerm.isBlank();
         boolean activeFilter = !"INACTIVE".equalsIgnoreCase(status);
@@ -77,9 +95,7 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    // (Hàm getCustomers đã chuẩn, giữ nguyên)
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<UserResponseDTO> getCustomers(Pageable pageable, String searchTerm, String status) {
@@ -91,13 +107,10 @@ public class UserServiceImpl implements UserService {
                 userPage.getTotalElements(), userPage.getTotalPages());
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    // (Hàm getEmployees đã chuẩn, giữ nguyên)
     @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<UserResponseDTO> getEmployees(Pageable pageable, String searchTerm, String status) {
-        // --- SỬA LOGIC: Thêm MANAGER vào danh sách ---
         List<Role> employeeRoles = List.of(Role.ADMIN, Role.STAFF, Role.MANAGER);
         Page<User> userPage = findUsers(null, employeeRoles, pageable, searchTerm, status);
         List<UserResponseDTO> dtos = userPage.getContent().stream()
@@ -116,36 +129,26 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy User: " + id));
 
-        if (!user.getEmail().equalsIgnoreCase(request.getEmail().trim()) &&
-                userRepository.existsByEmail(request.getEmail().trim())) {
-            throw new DuplicateResourceException("Email '" + request.getEmail().trim() + "' đã được sử dụng.");
+        String email = request.getEmail().trim();
+
+        // === SỬA LOGIC (Cho nhất quán với các Service khác) ===
+        // "Kiểm tra xem email mới có trùng với CỦA NGƯỜI KHÁC không"
+        if (userRepository.existsByEmailAndIdNot(email, id)) {
+            throw new DuplicateResourceException("Email '" + email + "' đã được sử dụng.");
         }
+        // === KẾT THÚC SỬA ===
 
         user.setFirstName(request.getFirstName().trim());
         user.setLastName(request.getLastName().trim());
-        user.setEmail(request.getEmail().trim());
+        user.setEmail(email);
         user.setPhone(request.getPhone());
         user.setActive(request.isActive());
-
-        // --- XÓA LOGIC POSITION ---
-        // if (request.getPosition() != null && !request.getPosition().isEmpty()) {
-        //     try {
-        //         user.setPosition(Position.valueOf(request.getPosition()));
-        //     } catch (IllegalArgumentException e) {
-        //         throw new ResourceNotFoundException("Chức vụ không hợp lệ: " + request.getPosition());
-        //     }
-        // } else {
-        //     user.setPosition(null);
-        // }
-        // --- KẾT THÚC XÓA ---
 
         User updated = userRepository.save(user);
         return mapToUserDTO(updated);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    // (Hàm updateProfile đã chuẩn, giữ nguyên)
     @Override
     @Transactional
     public UserResponseDTO updateProfile(String userEmail, UpdateProfileRequestDTO request) {
@@ -157,19 +160,13 @@ public class UserServiceImpl implements UserService {
         user.setPhone(request.getPhone());
 
         if (request.getGender() != null && !request.getGender().isEmpty()) {
-            try {
-                user.setGender(Gender.valueOf(request.getGender().toUpperCase()));
-            } catch (IllegalArgumentException e) { /* Bỏ qua */ }
-        } else {
-            user.setGender(null);
-        }
+            try { user.setGender(Gender.valueOf(request.getGender().toUpperCase())); }
+            catch (IllegalArgumentException e) { /* Bỏ qua */ }
+        } else { user.setGender(null); }
         if (request.getDob() != null && !request.getDob().isEmpty()) {
-            try {
-                user.setDob(LocalDate.parse(request.getDob()));
-            } catch (DateTimeParseException e) { /* Bỏ qua */ }
-        } else {
-            user.setDob(null);
-        }
+            try { user.setDob(LocalDate.parse(request.getDob())); }
+            catch (DateTimeParseException e) { /* Bỏ qua */ }
+        } else { user.setDob(null); }
 
         User updatedUser = userRepository.save(user);
         return mapToUserDTO(updatedUser);
@@ -187,9 +184,7 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    // (Hàm updatePassword đã chuẩn, giữ nguyên)
     @Override
     @Transactional
     public String updatePassword(UpdatePasswordRequestDTO request) {
@@ -205,9 +200,7 @@ public class UserServiceImpl implements UserService {
         return "Đổi mật khẩu thành công!";
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    // (Hàm createEmployee đã chuẩn, giữ nguyên)
     @Override
     @Transactional
     public UserResponseDTO createEmployee(EmployeeRequestDTO request) {
@@ -228,15 +221,6 @@ public class UserServiceImpl implements UserService {
             throw new BusinessRuleException("Không thể tạo Khách hàng (USER) từ API này.");
         }
 
-        // --- XÓA LOGIC POSITION ---
-        // Position position;
-        // try {
-        //     position = Position.valueOf(request.getPosition().toUpperCase());
-        // } catch (IllegalArgumentException e) {
-        //     throw new ResourceNotFoundException("Chức vụ (Position) không hợp lệ: " + request.getPosition());
-        // }
-        // --- KẾT THÚC XÓA ---
-
         User employee = User.builder()
                 .firstName(firstName)
                 .lastName(lastName)
@@ -244,7 +228,6 @@ public class UserServiceImpl implements UserService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .role(role)
-                // .position(position) // <-- XÓA
                 .provider(com.poly.bezbe.enums.AuthProvider.LOCAL)
                 .isActive(true)
                 .build();
@@ -252,4 +235,34 @@ public class UserServiceImpl implements UserService {
         User saved = userRepository.save(employee);
         return mapToUserDTO(saved);
     }
+
+    // === THÊM HÀM MỚI: XÓA VĨNH VIỄN ===
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional
+    public void permanentDeleteUser(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy người dùng với ID: " + id));
+
+        // KIỂM TRA LOGIC NGHIỆP VỤ (PHÂN TÁCH)
+        if (user.getRole() == Role.USER) {
+            // 1. Nếu là KHÁCH HÀNG -> Kiểm tra Đơn hàng
+            Integer orderCount = orderRepository.countByUserId(id);
+            if (orderCount > 0) {
+                throw new IllegalStateException("Không thể xóa vĩnh viễn khách hàng đã có " + orderCount + " đơn hàng.");
+            }
+        } else {
+            // 2. Nếu là NHÂN VIÊN -> Kiểm tra Lịch sử hoạt động
+            Integer activityCount = orderAuditLogRepository.countByStaffId(id);
+            if (activityCount > 0) {
+                throw new IllegalStateException("Không thể xóa vĩnh viễn nhân viên đã có " + activityCount + " lịch sử hoạt động.");
+            }
+        }
+
+        // 3. Nếu không vướng gì (count == 0), tiến hành xóa vĩnh viễn
+        userRepository.delete(user);
+    }
+    // === KẾT THÚC THÊM HÀM MỚI ===
 }

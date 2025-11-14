@@ -31,7 +31,7 @@ public class Variant {
     @Column(name = "name", columnDefinition = "NVARCHAR(255)")
     private String name;
 
-    @Column(name = "price", precision = 10, scale = 2)
+    @Column(name = "price", precision = 19, scale = 2)
     private BigDecimal price;
 
     @Column(name = "stock_quantity")

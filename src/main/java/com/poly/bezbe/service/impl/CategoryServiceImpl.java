@@ -1,33 +1,35 @@
-package com.poly.bezbe.service.impl; // <-- Chú ý package con 'impl'
+package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.dto.request.CategoryRequestDTO;
 import com.poly.bezbe.dto.response.CategoryResponseDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.entity.Category;
+import com.poly.bezbe.entity.Product;
+import com.poly.bezbe.exception.DuplicateResourceException; // <-- THÊM IMPORT
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.CategoryRepository;
 import com.poly.bezbe.repository.ProductRepository;
-import com.poly.bezbe.service.CategoryService; // <-- Import interface
+import com.poly.bezbe.service.CategoryService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException; // (Giữ lại vì bạn dùng ở permanentDelete)
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.dao.DataIntegrityViolationException; // <-- THÊM IMPORT
+
 import java.util.List;
 import java.util.stream.Collectors;
-import com.poly.bezbe.entity.Product; // <-- THÊM IMPORT
-@Service // <-- @Service được đặt ở đây
+
+@Service
 @RequiredArgsConstructor
-public class CategoryServiceImpl implements CategoryService { // <-- Implement interface
+public class CategoryServiceImpl implements CategoryService {
 
-    private final ProductRepository productRepository; // <-- THÊM DEPENDENCY
-    private final CategoryRepository categoryRepository; // <-- THÊM DEPENDENCY
+    private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
 
-    // --- SỬA HÀM NÀY ---
+    // (Hàm này đã chuẩn, có productCount)
     private CategoryResponseDTO mapToCategoryDTO(Category category) {
-        // Đếm số sản phẩm liên quan
         long productCount = productRepository.countByCategoryId(category.getId());
 
         return CategoryResponseDTO.builder()
@@ -36,29 +38,28 @@ public class CategoryServiceImpl implements CategoryService { // <-- Implement i
                 .description(category.getDescription())
                 .active(category.isActive())
                 .imageUrl(category.getImageUrl())
-                .productCount(productCount) // <-- Gán giá trị đếm được
+                .productCount(productCount)
                 .build();
     }
 
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<CategoryResponseDTO> getAllCategories(Pageable pageable, String searchTerm, String status) {
+        // (Logic này đã ổn)
         Page<Category> categoryPage;
         boolean searching = searchTerm != null && !searchTerm.isBlank();
         boolean activeFilter = !"INACTIVE".equalsIgnoreCase(status);
 
         if ("ALL".equalsIgnoreCase(status)) {
-            // Logic ALL
             if (searching) {
                 categoryPage = categoryRepository.findByNameContainingIgnoreCase(searchTerm.trim(), pageable);
             } else {
                 categoryPage = categoryRepository.findAll(pageable);
             }
         } else {
-            // Logic ACTIVE/INACTIVE
             if (searching) {
                 categoryPage = categoryRepository.findByNameContainingIgnoreCaseAndActive(searchTerm.trim(), activeFilter, pageable);
             } else {
@@ -75,7 +76,7 @@ public class CategoryServiceImpl implements CategoryService { // <-- Implement i
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional(readOnly = true)
     public List<CategoryResponseDTO> getAllCategoriesBrief() {
         return categoryRepository.findAllByActiveTrue(Sort.by(Sort.Direction.ASC, "name"))
@@ -87,12 +88,19 @@ public class CategoryServiceImpl implements CategoryService { // <-- Implement i
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public CategoryResponseDTO createCategory(CategoryRequestDTO request) {
-        // (Cân nhắc thêm kiểm tra trùng tên ở đây)
+        String name = request.getName().trim();
+
+        // === THÊM KIỂM TRA "CHECK FIRST" ===
+        if (categoryRepository.existsByNameIgnoreCase(name)) {
+            throw new DuplicateResourceException("Tên danh mục '" + name + "' đã tồn tại.");
+        }
+        // === KẾT THÚC THÊM ===
+
         Category category = Category.builder()
-                .name(request.getName().trim())
+                .name(name)
                 .description(request.getDescription())
                 .imageUrl(request.getImageUrl())
                 .active(request.isActive())
@@ -104,15 +112,28 @@ public class CategoryServiceImpl implements CategoryService { // <-- Implement i
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public CategoryResponseDTO updateCategory(Long id, CategoryRequestDTO request) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Danh mục: " + id));
-        category.setName(request.getName().trim());
+
+        String name = request.getName().trim();
+
+        // === THÊM KIỂM TRA "CHECK FIRST" ===
+        // "Nếu tên đang thay đổi VÀ tên mới trùng với của người khác"
+        if (!category.getName().equalsIgnoreCase(name) &&
+                categoryRepository.existsByNameIgnoreCaseAndIdNot(name, id)) {
+
+            throw new DuplicateResourceException("Tên danh mục '" + name + "' đã được sử dụng.");
+        }
+        // === KẾT THÚC THÊM ===
+
+        category.setName(name);
         category.setDescription(request.getDescription());
         category.setActive(request.isActive());
-        category.setImageUrl(request.getImageUrl()); // <-- THÊM DÒNG NÀY
+        category.setImageUrl(request.getImageUrl());
+
         Category updated = categoryRepository.save(category);
         return mapToCategoryDTO(updated);
     }
@@ -123,14 +144,13 @@ public class CategoryServiceImpl implements CategoryService { // <-- Implement i
     @Override
     @Transactional
     public void deleteCategory(Long id) {
+        // (Logic này đã chuẩn)
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Danh mục: " + id));
 
-        // 1. Ẩn danh mục
         category.setActive(false);
         categoryRepository.save(category);
 
-        // 2. Ẩn hàng loạt các sản phẩm đang active thuộc danh mục này
         List<Product> productsToHide = productRepository.findAllByCategoryIdAndActive(id, true);
         if (!productsToHide.isEmpty()) {
             for (Product product : productsToHide) {
@@ -140,22 +160,21 @@ public class CategoryServiceImpl implements CategoryService { // <-- Implement i
         }
     }
 
-    // --- THÊM HÀM MỚI (XÓA VĨNH VIỄN) ---
     @Override
     @Transactional
     public void permanentDeleteCategory(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Danh mục: " + id));
 
-        // 1. Kiểm tra xem có sản phẩm nào không
         long productCount = productRepository.countByCategoryId(id);
 
         if (productCount > 0) {
-            // 2. Nếu có, ném lỗi, không cho xóa
-            throw new DataIntegrityViolationException("Không thể xóa vĩnh viễn danh mục đang có sản phẩm. Chỉ có thể xóa khi không còn sản phẩm nào.");
+            // === SỬA EXCEPTION (Để nhất quán với các Service khác) ===
+            // Ném lỗi logic nghiệp vụ
+            throw new IllegalStateException("Không thể xóa vĩnh viễn danh mục đang có " + productCount + " sản phẩm.");
+            // =======================================================
         }
 
-        // 3. Nếu không có, tiến hành xóa vĩnh viễn
         categoryRepository.delete(category);
     }
 }

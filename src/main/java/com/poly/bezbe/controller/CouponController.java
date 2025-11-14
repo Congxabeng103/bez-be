@@ -95,4 +95,11 @@ public class CouponController {
         // 4. Trả về số tiền giảm được
         return ResponseEntity.ok(ApiResponseDTO.success(couponDiscount, "Áp dụng mã thành công"));
     }
+    @DeleteMapping("/permanent-delete/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // Chỉ Admin/Manager mới được xóa
+    public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteCoupon(@PathVariable Long id) {
+        // Hàm này sẽ được tạo ở bước 2 và 3
+        couponService.permanentDeleteCoupon(id);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn coupon thành công"));
+    }
 }

@@ -196,11 +196,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public String handleVnpayIpn(HttpServletRequest request) {
 
-        // --- 1. LOG KHI MỚI VÀO ---
-        // (Thêm new java.util.Date() để biết chính xác thời gian nó được gọi)
-        System.out.println(
-                "--- LOG TEST: IPN ĐÃ GỌI VÀO SERVER --- (Lúc: " + new java.util.Date() + ")"
-        );
+
 
         try {
             // Lấy tất cả tham số VNPAY trả về
@@ -234,7 +230,6 @@ public class OrderServiceImpl implements OrderService {
 
             // ... (Kiểm tra order == null) ...
             if (order == null) {
-                System.err.println("--- LOG TEST IPN FAILED: Không tìm thấy Order ID: " + actualOrderId + " ---");
                 return "{\"RspCode\":\"01\",\"Message\":\"Order not found\"}";
             }
 
@@ -242,10 +237,7 @@ public class OrderServiceImpl implements OrderService {
             BigDecimal vnpAmountDecimal = new BigDecimal(vnp_Amount).divide(new BigDecimal("100"));
             if (order.getTotalAmount().compareTo(vnpAmountDecimal) != 0) {
 
-                // --- 3. LOG KHI LỖI SAI SỐ TIỀN ---
-                System.err.println("--- LOG TEST IPN FAILED: Sai SỐ TIỀN (Amount Mismatch) ---");
-                System.err.println("   -> Tiền trong Database (đã làm tròn): " + order.getTotalAmount());
-                System.err.println("   -> Tiền VNPAY IPN gửi về: " + vnpAmountDecimal);
+
 
                 return "{\"RspCode\":\"04\",\"Message\":\"Invalid amount\"}";
             }
@@ -257,13 +249,11 @@ public class OrderServiceImpl implements OrderService {
             }
 
             // 6. Xử lý logic
-            // ... (Code 'if ("00".equals(vnp_ResponseCode))' của bạn) ...
             if ("00".equals(vnp_ResponseCode)) {
                 // 1. CẬP NHẬT ORDER (Bạn đã làm)
                 order.setPaymentStatus(PaymentStatus.PAID);
                 order.setOrderStatus(OrderStatus.CONFIRMED);
 
-                // --- THÊM 2 DÒNG NÀY ---
                 // Ghi log (Timeline) cho hành động "Thanh toán thành công"
                 auditLogService.logActivity(
                         order,

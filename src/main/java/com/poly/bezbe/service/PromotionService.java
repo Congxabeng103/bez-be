@@ -55,4 +55,5 @@ public interface PromotionService {
      * @return Danh sách PromotionBriefDTO.
      */
     List<PromotionBriefDTO> getPromotionBriefList();
+    void permanentDeletePromotion(Long id);
 }

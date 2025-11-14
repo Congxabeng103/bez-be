@@ -48,4 +48,5 @@ public interface UserService {
      * (Admin) Tạo một tài khoản Nhân viên mới.
      */
     UserResponseDTO createEmployee(EmployeeRequestDTO request);
+    void permanentDeleteUser(Long id);
 }

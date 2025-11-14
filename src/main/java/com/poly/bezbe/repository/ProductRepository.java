@@ -1,6 +1,7 @@
 package com.poly.bezbe.repository;
 
 import com.poly.bezbe.entity.Product;
+import com.poly.bezbe.entity.Promotion;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph; // Import
@@ -62,4 +63,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
      long countByBrandId(Long brandId);
      List<Product> findAllByBrandIdAndActive(Long brandId, boolean active);
     List<Product> findByCategoryIdAndIdNotAndActiveTrue(Long categoryId, Long productId, Pageable pageable);
+    long countByPromotion(Promotion promotion);
+    boolean existsByNameIgnoreCase(String name);
+
+    // Dùng cho hàm updateProduct
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

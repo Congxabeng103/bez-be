@@ -19,4 +19,8 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
     Page<Brand> findByNameContainingIgnoreCase(String name, Pageable pageable);
     Page<Brand> findAll(Pageable pageable);
     List<Brand> findAll(Sort sort);
+    boolean existsByNameIgnoreCase(String name);
+
+    // Dùng cho hàm updateBrand
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

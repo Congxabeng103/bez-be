@@ -48,4 +48,5 @@ public interface CouponService {
      */
     void deleteCoupon(Long id);
     Coupon validateCoupon(String code, BigDecimal subtotal);
+    void permanentDeleteCoupon(Long id); // <-- THÊM MỚI HÀM NÀY
 }

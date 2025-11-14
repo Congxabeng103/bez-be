@@ -9,6 +9,7 @@ import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.CouponRepository;
 import com.poly.bezbe.service.CouponService; // <-- Import interface
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -167,5 +168,23 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
         }
 
         return coupon;
+    }
+    @Override
+    @Transactional // Đảm bảo thao tác DB nhất quán
+    public void permanentDeleteCoupon(Long id) {
+        // 1. Tìm coupon
+        Coupon coupon = couponRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy coupon với ID: " + id));
+
+        // 2. Kiểm tra điều kiện (quan trọng!)
+        if (coupon.getUsedCount() > 0) {
+            // Nếu đã có người dùng, không cho phép xóa vĩnh viễn
+            // Ném ra lỗi để báo cho frontend
+            throw new IllegalStateException("Không thể xóa vĩnh viễn coupon đã có lượt sử dụng.");
+        }
+
+        // 3. Nếu điều kiện thỏa mãn (usedCount == 0), tiến hành xóa
+        couponRepository.delete(coupon);
+        // Hoặc couponRepository.deleteById(id);
     }
 }

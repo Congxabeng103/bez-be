@@ -7,8 +7,10 @@ import com.poly.bezbe.dto.response.PromotionResponseDTO;
 import com.poly.bezbe.entity.Promotion;
 import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
+import com.poly.bezbe.repository.ProductRepository;
 import com.poly.bezbe.repository.PromotionRepository;
 import com.poly.bezbe.service.PromotionService; // <-- Import interface
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -24,9 +26,16 @@ import java.util.stream.Collectors;
 public class PromotionServiceImpl implements PromotionService { // <-- Implement interface
 
     private final PromotionRepository promotionRepository;
+    private final ProductRepository productRepository;
+
 
     // Hàm private này là chi tiết nội bộ, chỉ nằm ở Impl
     private PromotionResponseDTO mapToPromotionDTO(Promotion promotion) {
+        // 1. Lấy số lượng sản phẩm
+        // (Chúng ta dùng countByPromotion vì hàm delete của bạn cũng dùng nó)
+        long count = productRepository.countByPromotion(promotion);
+
+        // 2. Trả về DTO đã bao gồm productCount
         return PromotionResponseDTO.builder()
                 .id(promotion.getId())
                 .name(promotion.getName())
@@ -36,6 +45,7 @@ public class PromotionServiceImpl implements PromotionService { // <-- Implement
                 .endDate(promotion.getEndDate())
                 .active(promotion.isActive())
                 .createdAt(promotion.getCreatedAt())
+                .productCount(count) // <-- THÊM DÒNG NÀY
                 .build();
     }
 
@@ -133,5 +143,25 @@ public class PromotionServiceImpl implements PromotionService { // <-- Implement
                         .name(promo.getName())
                         .build())
                 .collect(Collectors.toList());
+    }
+    @Override
+    @Transactional // Đảm bảo an toàn dữ liệu
+    public void permanentDeletePromotion(Long id) {
+        // 1. Tìm khuyến mãi
+        Promotion promotion = promotionRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy khuyến mãi với ID: " + id));
+
+        // 2. KIỂM TRA ĐIỀU KIỆN (RẤT QUAN TRỌNG)
+        // Kiểm tra xem có sản phẩm nào đang liên kết với khuyến mãi này không.
+        // (Giả sử bạn có hàm countByPromotionId trong ProductRepository)
+        long productCount = productRepository.countByPromotion(promotion);
+
+        if (productCount > 0) {
+            // Nếu có, ném lỗi, không cho xóa
+            throw new IllegalStateException("Không thể xóa vĩnh viễn khuyến mãi đang được áp dụng cho " + productCount + " sản phẩm.");
+        }
+
+        // 3. Nếu không có sản phẩm nào liên kết, tiến hành xóa vĩnh viễn
+        promotionRepository.delete(promotion);
     }
 }

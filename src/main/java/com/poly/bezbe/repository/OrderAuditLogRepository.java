@@ -10,4 +10,5 @@ public interface OrderAuditLogRepository extends JpaRepository<OrderAuditLog, Lo
 
     // Spring tự hiểu tên hàm: "Tìm theo OrderId, Sắp xếp theo CreatedAt Giảm dần"
     List<OrderAuditLog> findByOrderIdOrderByCreatedAtDesc(Long orderId);
+    Integer countByStaffId(Long userId);
 }

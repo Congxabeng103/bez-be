@@ -76,4 +76,11 @@ public class PromotionController {
         promotionService.deletePromotion(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động khuyến mãi thành công"));
     }
+    @DeleteMapping("/permanent-delete/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')") // Chỉ Admin/Manager
+    public ResponseEntity<ApiResponseDTO<Object>> permanentDeletePromotion(@PathVariable Long id) {
+        // Hàm này bạn sẽ cần tạo ở Service
+        promotionService.permanentDeletePromotion(id);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn khuyến mãi thành công"));
+    }
 }

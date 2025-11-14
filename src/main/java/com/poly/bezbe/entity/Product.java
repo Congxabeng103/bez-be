@@ -63,8 +63,7 @@ public class Product {
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductImage> images;
 
-    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ProductReview> reviews;
+
     // --- THÊM DÒNG NÀY ---
     // Một sản phẩm có nhiều "options" (Màu sắc, Kích cỡ...)
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -248,7 +248,7 @@ public class VariantServiceImpl implements VariantService {
         long orderCount = orderItemRepository.countByVariantId(variantId);
 
         if (orderCount > 0) {
-            throw new BusinessRuleException("Không thể xóa vĩnh viễn biến thể đã có trong đơn hàng.");
+            throw new IllegalStateException("Không thể xóa vĩnh viễn biến thể đã có " + orderCount + " đơn hàng.");
         }
 
         // --- SỬA LOGIC NÀY ---

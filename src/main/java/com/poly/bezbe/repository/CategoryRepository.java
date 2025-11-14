@@ -26,4 +26,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     // Lấy tất cả (đã có sẵn, dùng cho /all-brief nếu bạn muốn)
     List<Category> findAll(Sort sort);
+    boolean existsByNameIgnoreCase(String name);
+
+    // Dùng cho hàm updateCategory
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

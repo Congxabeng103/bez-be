@@ -97,4 +97,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "AND o.stockReturned = false " + // <-- Lọc các đơn chưa nhập kho
             "AND (:searchTerm IS NULL OR o.orderNumber LIKE %:searchTerm% OR o.customerName LIKE %:searchTerm% OR o.phone LIKE %:searchTerm%)")
     Page<Order> findOrdersPendingStockReturn(String searchTerm, Pageable pageable);
+    Integer countByUserId(Long userId);
 }

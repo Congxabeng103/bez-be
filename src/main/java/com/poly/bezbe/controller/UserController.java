@@ -110,4 +110,11 @@ public class UserController {
         String message = userService.updatePassword(request);
         return ResponseEntity.ok(ApiResponseDTO.success(null, message));
     }
+    @DeleteMapping("/permanent-delete/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteUser(@PathVariable Long id) {
+        // Hàm này đã tồn tại trong UserServiceImpl và đã có logic "thông minh"
+        userService.permanentDeleteUser(id);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn người dùng thành công"));
+    }
 }
