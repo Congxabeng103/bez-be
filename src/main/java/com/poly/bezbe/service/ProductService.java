@@ -7,6 +7,8 @@ import com.poly.bezbe.dto.response.product.ProductDetailResponseDTO;
 import com.poly.bezbe.dto.response.product.ProductResponseDTO;
 import org.springframework.data.domain.Pageable;
 
+import java.math.BigDecimal;
+
 /**
  * Interface định nghĩa các nghiệp vụ liên quan đến Sản phẩm (Product).
  */
@@ -27,7 +29,8 @@ public interface ProductService {
             String status,
             String categoryName, // <-- Thêm
             Double minPrice,     // <-- Thêm
-            Double maxPrice      // <-- Thêm
+            Double maxPrice,      // <-- Thêm
+            Boolean hasVariants // <-- THÊM VÀO ĐÂY
     );
     /**
      * Tạo một sản phẩm mới.
@@ -65,4 +68,5 @@ public interface ProductService {
     // THÊM HÀM NÀY
     void permanentDeleteProduct(Long productId);
     ProductDetailResponseDTO getProductDetailById(Long productId);
+    BigDecimal getHighestProductPrice();
 }

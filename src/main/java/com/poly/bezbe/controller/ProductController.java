@@ -21,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize; // <-- 1. IMPORT
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -42,7 +43,8 @@ public class ProductController {
 
             @RequestParam(required = false) String categoryName,
             @RequestParam(required = false) Double minPrice,
-            @RequestParam(required = false) Double maxPrice
+            @RequestParam(required = false) Double maxPrice,
+            @RequestParam(required = false) Boolean hasVariants
     ) {
         // 1. Logic Sort (giữ nguyên)
         String[] sortParams = sort.split(",");
@@ -51,7 +53,7 @@ public class ProductController {
 
         // 2. Gọi Service với đầy đủ tham số
         PageResponseDTO<ProductResponseDTO> productPage = productService.getAllProducts(
-                pageable, search, status, categoryName, minPrice, maxPrice
+                pageable, search, status, categoryName, minPrice, maxPrice,hasVariants
         );
 
         // 3. Trả về (giữ nguyên)
@@ -142,5 +144,15 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa ảnh thành công"));
     }
 
+    @PreAuthorize("permitAll()") // (Hoặc để trống nếu SecurityConfig đã mở)
+    @GetMapping("/max-price")
+    public ResponseEntity<BigDecimal> getHighestPrice() {
+        BigDecimal maxPrice = productService.getHighestProductPrice();
+        if (maxPrice == null) {
+            // Đặt giá trị mặc định nếu không có sản phẩm nào
+            maxPrice = new BigDecimal("5000000");
+        }
+        return ResponseEntity.ok(maxPrice);
+    }
     // === KẾT THÚC THÊM API ===
 }

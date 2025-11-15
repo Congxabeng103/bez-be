@@ -10,15 +10,15 @@ import org.springframework.data.jpa.repository.Query; // Import
 import org.springframework.data.repository.query.Param; // Import
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // --- SỬA HÀM NÀY ---
-    // Xóa hàm findBySearchAndStatus cũ và thay bằng hàm này:
     @EntityGraph(attributePaths = {"promotion", "category", "brand"})
-    @Query("SELECT p FROM Product p LEFT JOIN p.category c LEFT JOIN p.brand b " + // Dùng LEFT JOIN
+    @Query("SELECT p FROM Product p LEFT JOIN p.category c LEFT JOIN p.brand b " +
             "WHERE " +
             // 1. Lọc Status (active/inactive/all)
             "(:status = 'ALL' OR p.active = :activeStatus) " +
@@ -33,7 +33,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             "AND (:minPrice IS NULL OR p.price >= :minPrice) " +
 
             // 5. Lọc Max Price
-            "AND (:maxPrice IS NULL OR p.price <= :maxPrice)")
+            "AND (:maxPrice IS NULL OR p.price <= :maxPrice) " +
+
+            // 6. === SỬA LOGIC LỌC BIẾN THỂ (Đã bỏ cặp ngoặc thừa) ===
+            "AND (:hasVariants IS NULL OR :hasVariants = false OR EXISTS (SELECT v FROM Variant v WHERE v.product = p AND v.active = true))") // <-- ĐÃ SỬA DÒNG NÀY
     Page<Product> searchAndFilterProducts(
             @Param("searchTerm") String searchTerm,
             @Param("status") String status,
@@ -41,9 +44,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("categoryName") String categoryName,
             @Param("minPrice") Double minPrice,
             @Param("maxPrice") Double maxPrice,
+            @Param("hasVariants") Boolean hasVariants, // Tham số đã có
             Pageable pageable
     );
     // --- KẾT THÚC SỬA ĐỔI ---
+
+    // (Các hàm bên dưới giữ nguyên)
 
     // 2. Dùng cho getProductBriefList (Chỉ lấy Active, TÌM KIẾM)
     @EntityGraph(attributePaths = {"variants"})
@@ -60,12 +66,14 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findAllByCategoryIdAndActive(Long categoryId, boolean active);
 
     // (Lát nữa bạn cũng sẽ cần 2 hàm tương tự cho Brand)
-     long countByBrandId(Long brandId);
-     List<Product> findAllByBrandIdAndActive(Long brandId, boolean active);
+    long countByBrandId(Long brandId);
+    List<Product> findAllByBrandIdAndActive(Long brandId, boolean active);
     List<Product> findByCategoryIdAndIdNotAndActiveTrue(Long categoryId, Long productId, Pageable pageable);
     long countByPromotion(Promotion promotion);
     boolean existsByNameIgnoreCase(String name);
 
     // Dùng cho hàm updateProduct
     boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
+    @Query("SELECT MAX(p.price) FROM Product p WHERE p.active = true")
+    BigDecimal findHighestActiveProductPrice();
 }

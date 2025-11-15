@@ -10,6 +10,9 @@ import java.util.List;
 public class ProductRequestDTO {
     @NotEmpty(message = "Tên sản phẩm không được để trống")
     private String name;
+    @NotNull(message = "Giá sản phẩm không được để trống")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Giá sản phẩm phải lớn hơn 0")
+    private BigDecimal price; // <-- GIÁ GỐC CỦA SẢN PHẨM CHA
     private String description;
     private String imageUrl;
     private Long categoryId;
