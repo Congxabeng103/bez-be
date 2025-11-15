@@ -19,6 +19,6 @@ public class ProductImage {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "image_url", nullable = false)
+    @Column(name = "image_url",unique = true, nullable = false, length = 500) // (Tăng độ dài)
     private String imageUrl;
 }

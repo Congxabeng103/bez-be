@@ -32,4 +32,5 @@ public class ProductResponseDTO {
     private Boolean isPromotionStillValid; // null if no promotion, false if inactive/expired
 
     private long variantCount;
+    private Integer galleryImageCount; // Đếm số ảnh trong album
 }

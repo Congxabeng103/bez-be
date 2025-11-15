@@ -1,11 +1,14 @@
 package com.poly.bezbe.controller;
 
+import com.poly.bezbe.dto.request.product.ProductImageRequestDTO;
 import com.poly.bezbe.dto.request.product.ProductRequestDTO;
 import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
 import com.poly.bezbe.dto.response.product.ProductBriefDTO;
 import com.poly.bezbe.dto.response.product.ProductDetailResponseDTO;
+import com.poly.bezbe.dto.response.product.ProductImageResponseDTO;
 import com.poly.bezbe.dto.response.product.ProductResponseDTO;
+import com.poly.bezbe.service.ProductImageService;
 import com.poly.bezbe.service.ProductService;
 import com.poly.bezbe.service.PromotionService;
 import jakarta.validation.Valid;
@@ -18,13 +21,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize; // <-- 1. IMPORT
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/products")
 @RequiredArgsConstructor
 public class ProductController {
 
     private final ProductService productService;
-
+    private final ProductImageService productImageService; // <-- THÊM INJECT
     // Lấy danh sách (Public - Cho phép tất cả)
     @GetMapping
     @PreAuthorize("permitAll()") // (Hoặc để trống nếu SecurityConfig đã mở)
@@ -109,4 +114,33 @@ public class ProductController {
         ProductDetailResponseDTO data = productService.getProductDetailById(productId);
         return ResponseEntity.ok(ApiResponseDTO.success(data, "Lấy chi tiết sản phẩm thành công"));
     }
+
+    // === THÊM 3 API MỚI CHO ALBUM ẢNH ===
+
+    @GetMapping("/{productId}/images")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')")
+    public ResponseEntity<ApiResponseDTO<List<ProductImageResponseDTO>>> getProductImages(
+            @PathVariable Long productId) {
+        List<ProductImageResponseDTO> images = productImageService.getImagesByProductId(productId);
+        return ResponseEntity.ok(ApiResponseDTO.success(images, "Lấy album ảnh thành công"));
+    }
+
+    @PostMapping("/{productId}/images")
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponseDTO<ProductImageResponseDTO>> addImageToProduct(
+            @PathVariable Long productId,
+            @Valid @RequestBody ProductImageRequestDTO request) { // (Chỉ nhận imageUrl)
+        ProductImageResponseDTO newImage = productImageService.addImageToProduct(productId, request);
+        return new ResponseEntity<>(ApiResponseDTO.success(newImage, "Thêm ảnh vào album thành công"), HttpStatus.CREATED);
+    }
+
+    @DeleteMapping("/images/{imageId}") // (Xóa theo ID ảnh)
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
+    public ResponseEntity<ApiResponseDTO<Object>> deleteProductImage(
+            @PathVariable Long imageId) {
+        productImageService.deleteProductImage(imageId);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa ảnh thành công"));
+    }
+
+    // === KẾT THÚC THÊM API ===
 }

@@ -37,7 +37,7 @@ public class ProductServiceImpl implements ProductService {
     private final VariantRepository variantRepository;
     private final ProductOptionRepository productOptionRepository;
     private final ProductOptionValueRepository productOptionValueRepository;
-
+    private final ProductImageRepository productImageRepository;
     // (Hàm mapToProductDTO đã chuẩn, giữ nguyên)
     private ProductResponseDTO mapToProductDTO(Product product) {
         Category category = product.getCategory();
@@ -84,7 +84,7 @@ public class ProductServiceImpl implements ProductService {
         }
 
         long variantCount = variantRepository.countByProductId(product.getId());
-
+        Integer imageCount = productImageRepository.findByProductId(product.getId()).size();
         return ProductResponseDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
@@ -104,6 +104,7 @@ public class ProductServiceImpl implements ProductService {
                 .isBrandActive(isBrandActive)
                 .isPromotionStillValid(isPromotionStillValid)
                 .variantCount(variantCount)
+                .galleryImageCount(imageCount) // <-- Thêm vào
                 .build();
     }
 
