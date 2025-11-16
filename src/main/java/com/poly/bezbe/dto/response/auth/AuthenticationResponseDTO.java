@@ -25,4 +25,11 @@ public class AuthenticationResponseDTO {
     private String phone;
     private String gender; // (MALE, FEMALE, OTHER)
     private String dob;    // (YYYY-MM-DD)
+    private String streetAddress;
+    private Integer provinceCode;
+    private String provinceName;
+    private Integer districtCode;
+    private String districtName;
+    private Integer wardCode;
+    private String wardName;
 }

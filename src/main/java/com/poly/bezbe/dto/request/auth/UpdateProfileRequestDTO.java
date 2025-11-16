@@ -9,7 +9,9 @@ public class UpdateProfileRequestDTO {
     private String firstName;
 
     @NotEmpty(message = "Họ không được để trống")
-    private String lastName;    private String phone;
+    private String lastName;
+    private String phone;
     private String gender; // (Service sẽ chuyển String này thành Enum)
     private String dob;    // (Service sẽ chuyển String "YYYY-MM-DD" thành LocalDate)
+    private String avatar;
 }

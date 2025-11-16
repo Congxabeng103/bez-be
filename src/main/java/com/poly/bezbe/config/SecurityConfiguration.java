@@ -27,8 +27,8 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // (Giữ nguyên code CORS của bạn)
         configuration.setAllowedOrigins(List.of("http://localhost:3000","https://white-flower-07d68e500.3.azurestaticapps.net"));
-
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
@@ -46,9 +46,10 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
 
-                        // 1. API CÔNG KHAI (Giữ nguyên)
+                        // 1. API CÔNG KHAI (SỬA Ở ĐÂY)
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
+                                // (Các API cũ của bạn)
                                 "/api/v1/products",
                                 "/api/v1/products/max-price",
                                 "/api/v1/products/detail/**",
@@ -56,10 +57,19 @@ public class SecurityConfiguration {
                                 "/api/v1/brands/all-brief",
                                 "/api/v1/variants/find",
                                 "/api/v1/payment/vnpay-return/**",
-                                "/api/v1/payment/vnpay-ipn/**"
+                                "/api/v1/payment/vnpay-ipn/**",
+
+                                // (Các API public bạn đã thêm)
+                                "/api/v1/promotions/public/latest",
+                                "/api/v1/coupons/public",
+
+                                // (THÊM 2 DÒNG CÒN THIẾU NÀY VÀO)
+                                "/api/v1/promotions/public/active", // <-- Cho phép slider
+                                "/api/v1/coupons/public/all"        // <-- Cho phép trang "Xem tất cả"
+
                         ).permitAll()
 
-                        // 2. API CỦA USER (ĐÃ ĐĂNG NHẬP) (Giữ nguyên)
+                        // 2. API CỦA USER (Giữ nguyên)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/coupons/validate",
                                 "/api/v1/orders/my-orders",
@@ -73,8 +83,8 @@ public class SecurityConfiguration {
                                 "/api/v1/payment/{orderId}/retry-vnpay"
                         ).authenticated()
 
-                        // 3. API VẬN HÀNH (STAFF, MANAGER, ADMIN) (Giữ nguyên)
-                        // (Bao gồm GET, POST, PUT, DELETE cho Orders và Payment)
+                        // (Tất cả các rule 3, 4, 5, 6 khác giữ nguyên y hệt code của bạn)
+                        // 3. API VẬN HÀNH (STAFF, MANAGER, ADMIN)
                         .requestMatchers(
                                 "/api/v1/orders/**",
                                 "/api/v1/payment/**",
@@ -82,10 +92,7 @@ public class SecurityConfiguration {
                                 "/api/v1/users/employees"
                         ).hasAnyAuthority("ADMIN", "STAFF", "MANAGER")
 
-
-                        // --- 4. SỬA LỖI API QUẢN TRỊ (MANAGER, ADMIN) ---
-                        // Tách riêng các quyền SỬA/XÓA (POST, PUT, DELETE)
-                        // để chúng không "đè" lên quyền XEM (GET)
+                        // 4. API QUẢN TRỊ (MANAGER, ADMIN)
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/products/**",
                                 "/api/v1/categories/**",
@@ -95,9 +102,8 @@ public class SecurityConfiguration {
                                 "/api/v1/promotions/**",
                                 "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
-
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/v1/products/**",
+                                "/api/j/v1/products/**",
                                 "/api/v1/categories/**",
                                 "/api/v1/brands/**",
                                 "/api/v1/attributes/**",
@@ -105,7 +111,6 @@ public class SecurityConfiguration {
                                 "/api/v1/promotions/**",
                                 "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
-
                         .requestMatchers(HttpMethod.DELETE,
                                 "/api/v1/products/**",
                                 "/api/v1/categories/**",
@@ -115,16 +120,10 @@ public class SecurityConfiguration {
                                 "/api/v1/promotions/**",
                                 "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
-
-                        // Cho phép GET Dashboard cho cả 2
                         .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/**").hasAnyAuthority("ADMIN", "MANAGER")
 
-                        // (Không cần khối .requestMatchers(...) chung cho /api/v1/products/** nữa)
-                        // --- KẾT THÚC SỬA KHỐI 4 ---
-
-
-                        // 5. API ADMIN TỐI CAO (Chỉ ADMIN) (Giữ nguyên)
-                        .requestMatchers("/api/v1/users/**").hasAuthority("ADMIN") // Chỉ Admin được QL user
+                        // 5. API ADMIN TỐI CAO
+                        .requestMatchers("/api/v1/users/**").hasAuthority("ADMIN")
 
                         // 6. Mọi request còn lại
                         .anyRequest().authenticated()

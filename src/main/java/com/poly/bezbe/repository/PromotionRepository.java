@@ -9,7 +9,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface PromotionRepository extends JpaRepository<Promotion, Long> {
@@ -31,4 +34,17 @@ public interface PromotionRepository extends JpaRepository<Promotion, Long> {
             @Param("active") boolean active,
             Pageable pageable
     );
+
+    // 2. (MỚI) Dùng cho Service (ĐƠN GIẢN)
+    /** Tìm 1 KM đang active, ưu tiên cái có ngày kết thúc xa nhất */
+    Optional<Promotion> findFirstByActiveOrderByEndDateDesc(boolean active);
+
+    // 3. (MỚI) Dùng cho Scheduler (TỰ ĐỘNG BẬT)
+    /** Tìm KM sắp bắt đầu (chưa active và ngày bắt đầu là hôm nay) */
+    List<Promotion> findAllByActiveAndStartDate(boolean active, LocalDate today);
+
+    // 4. (MỚI) Dùng cho Scheduler (TỰ ĐỘNG TẮT)
+    /** Tìm KM đã hết hạn (đang active và ngày kết thúc < hôm nay) */
+    List<Promotion> findAllByActiveAndEndDateLessThan(boolean active, LocalDate today);
+    List<Promotion> findAllByActive(boolean active);
 }

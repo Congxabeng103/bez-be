@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -34,4 +36,17 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
      * Tìm coupon bằng mã, không phân biệt hoa thường
      */
     Optional<Coupon> findByCodeIgnoreCase(String code);
+
+    // 1. (MỚI) Dùng cho Service (ĐƠN GIẢN)
+    /** Tìm tất cả coupon đang active (dùng cho trang chủ) */
+    List<Coupon> findByActive(boolean active, Pageable pageable);
+
+    // 2. (MỚI) Dùng cho Scheduler (TỰ ĐỘNG BẬT)
+    /** Tìm Coupon sắp bắt đầu (chưa active và ngày bắt đầu là hôm nay) */
+    List<Coupon> findAllByActiveAndStartDate(boolean active, LocalDate today);
+
+    // 3. (MỚI) Dùng cho Scheduler (TỰ ĐỘNG TẮT)
+    /** Tìm Coupon đã hết hạn (đang active và ngày kết thúc < hôm nay) */
+    List<Coupon> findAllByActiveAndEndDateLessThan(boolean active, LocalDate today);
+    List<Coupon> findAllByActive(boolean active);
 }

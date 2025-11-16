@@ -99,14 +99,14 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     public AuthenticationResponseDTO authenticate(AuthenticationRequestDTO request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user")); // Về mặt lý thuyết, không bao giờ xảy ra nếu authenticate() thành công
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user"));
 
         if (!user.isEnabled()) {
             if (user.getActivationToken() != null) {
@@ -121,6 +121,7 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
         String firstName = (user.getFirstName() != null ? user.getFirstName() : "");
         String fullName = (lastName + " " + firstName).trim();
 
+        // --- SỬA PHẦN BUILDER NÀY ---
         return AuthenticationResponseDTO.builder()
                 .accessToken(jwtToken)
                 .tokenType("Bearer")
@@ -134,6 +135,17 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
                 .phone(user.getPhone())
                 .gender(user.getGender() != null ? user.getGender().name() : null)
                 .dob(user.getDob() != null ? user.getDob().toString() : null)
+
+                // --- BẮT ĐẦU THÊM MỚI (MAP) ---
+                .streetAddress(user.getStreetAddress())
+                .provinceCode(user.getProvinceCode())
+                .provinceName(user.getProvinceName())
+                .districtCode(user.getDistrictCode())
+                .districtName(user.getDistrictName())
+                .wardCode(user.getWardCode())
+                .wardName(user.getWardName())
+                // --- KẾT THÚC THÊM MỚI (MAP) ---
+
                 .build();
     }
 

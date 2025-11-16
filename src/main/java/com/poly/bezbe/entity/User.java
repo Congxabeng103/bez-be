@@ -76,6 +76,29 @@ public class User implements UserDetails {
     @Column
     private LocalDate dob; // Ngày sinh
 
+    // --- BẮT ĐẦU THÊM MỚI ---
+    @Column(columnDefinition = "NVARCHAR(255)")
+    private String streetAddress; // Số nhà, tên đường
+
+    @Column
+    private Integer provinceCode;
+
+    @Column(columnDefinition = "NVARCHAR(100)")
+    private String provinceName;
+
+    @Column
+    private Integer districtCode;
+
+    @Column(columnDefinition = "NVARCHAR(100)")
+    private String districtName;
+
+    @Column
+    private Integer wardCode;
+
+    @Column(columnDefinition = "NVARCHAR(100)")
+    private String wardName;
+    // --- KẾT THÚC THÊM MỚI ---
+
     @Builder.Default
     @Column(nullable = false, columnDefinition = "bit default 0")
     private boolean isActive = false;

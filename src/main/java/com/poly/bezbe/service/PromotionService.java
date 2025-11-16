@@ -56,4 +56,6 @@ public interface PromotionService {
      */
     List<PromotionBriefDTO> getPromotionBriefList();
     void permanentDeletePromotion(Long id);
+    PromotionResponseDTO getLatestActivePromotion();
+    List<PromotionResponseDTO> getActivePromotions();
 }

@@ -2,6 +2,7 @@ package com.poly.bezbe.service;
 
 import com.poly.bezbe.dto.request.EmployeeRequestDTO;
 import com.poly.bezbe.dto.request.UserRequestDTO;
+import com.poly.bezbe.dto.request.auth.UpdateAddressRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdatePasswordRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdateProfileRequestDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
@@ -49,4 +50,5 @@ public interface UserService {
      */
     UserResponseDTO createEmployee(EmployeeRequestDTO request);
     void permanentDeleteUser(Long id);
+    UserResponseDTO updateAddress(String userEmail, UpdateAddressRequestDTO request);
 }

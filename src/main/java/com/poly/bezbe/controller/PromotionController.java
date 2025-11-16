@@ -83,4 +83,28 @@ public class PromotionController {
         promotionService.permanentDeletePromotion(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn khuyến mãi thành công"));
     }
+    @GetMapping("/public/latest")
+    @PreAuthorize("permitAll()") // <-- Cho phép tất cả mọi người
+    public ResponseEntity<ApiResponseDTO<PromotionResponseDTO>> getLatestPublicPromotion() {
+
+        // Gọi hàm service đơn giản (vì scheduler đã lo)
+        PromotionResponseDTO latestPromotion = promotionService.getLatestActivePromotion();
+
+        // Trả về 200 OK (dù data có là null hay không)
+        return ResponseEntity.ok(ApiResponseDTO.success(latestPromotion,
+                latestPromotion != null ? "Lấy khuyến mãi mới nhất thành công" : "Không có khuyến mãi nào đang hoạt động"));
+    }
+    /**
+     * (MỚI) API PUBLIC: Lấy TẤT CẢ KM đang active
+     * (Dùng cho banner carousel trang chủ)
+     */
+    @GetMapping("/public/active")
+    @PreAuthorize("permitAll()") // <-- Cho phép tất cả
+    public ResponseEntity<ApiResponseDTO<List<PromotionResponseDTO>>> getPublicActivePromotions() {
+
+        List<PromotionResponseDTO> promotions = promotionService.getActivePromotions();
+
+        return ResponseEntity.ok(ApiResponseDTO.success(promotions,
+                "Lấy danh sách khuyến mãi active thành công"));
+    }
 }

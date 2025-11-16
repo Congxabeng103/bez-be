@@ -17,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize; // <-- IMPORT
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/coupons")
@@ -101,5 +102,25 @@ public class CouponController {
         // Hàm này sẽ được tạo ở bước 2 và 3
         couponService.permanentDeleteCoupon(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn coupon thành công"));
+    }
+    @GetMapping("/public")
+    @PreAuthorize("permitAll()") // <-- Cho phép tất cả mọi người
+    public ResponseEntity<ApiResponseDTO<List<CouponResponseDTO>>> getPublicCoupons(
+            @RequestParam(defaultValue = "3") int size // Lấy 3 cái
+    ) {
+        // Gọi hàm service đơn giản (vì scheduler đã lo)
+        List<CouponResponseDTO> coupons = couponService.getPublicActiveCoupons(size);
+
+        return ResponseEntity.ok(ApiResponseDTO.success(coupons, "Lấy danh sách coupon public thành công"));
+    }
+    /**
+     * (MỚI) API PUBLIC: Lấy TẤT CẢ coupon đang active
+     * (Dùng cho trang "Kho Voucher")
+     */
+    @GetMapping("/public/all")
+    @PreAuthorize("permitAll()") // <-- Cho phép tất cả
+    public ResponseEntity<ApiResponseDTO<List<CouponResponseDTO>>> getAllPublicCoupons() {
+        List<CouponResponseDTO> coupons = couponService.getAllPublicActiveCoupons();
+        return ResponseEntity.ok(ApiResponseDTO.success(coupons, "Lấy tất cả coupon public thành công"));
     }
 }

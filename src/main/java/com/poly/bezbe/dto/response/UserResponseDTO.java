@@ -33,5 +33,12 @@ public class UserResponseDTO {
     /** Dùng cho Nhân viên (STAFF/ADMIN/MANAGER): Đếm số hoạt động đã ghi log */
     private Integer activityCount; // <-- THÊM TRƯỜNG NÀY
     // --- KẾT THÚC SỬA ---
-
+    // --- BẮT ĐẦU THÊM MỚI ---
+    private String streetAddress;
+    private Integer provinceCode;
+    private String provinceName;
+    private Integer districtCode;
+    private String districtName;
+    private Integer wardCode;
+    private String wardName;
 }

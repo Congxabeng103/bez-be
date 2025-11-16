@@ -7,6 +7,7 @@ import com.poly.bezbe.entity.Coupon;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 /**
  * Interface định nghĩa các nghiệp vụ cho Mã giảm giá (Coupon).
@@ -49,4 +50,6 @@ public interface CouponService {
     void deleteCoupon(Long id);
     Coupon validateCoupon(String code, BigDecimal subtotal);
     void permanentDeleteCoupon(Long id); // <-- THÊM MỚI HÀM NÀY
+    List<CouponResponseDTO> getPublicActiveCoupons(int size);
+    List<CouponResponseDTO> getAllPublicActiveCoupons();
 }

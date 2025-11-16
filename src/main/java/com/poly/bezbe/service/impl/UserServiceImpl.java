@@ -2,6 +2,7 @@ package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.dto.request.EmployeeRequestDTO;
 import com.poly.bezbe.dto.request.UserRequestDTO;
+import com.poly.bezbe.dto.request.auth.UpdateAddressRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdatePasswordRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdateProfileRequestDTO;
 import com.poly.bezbe.dto.response.PageResponseDTO;
@@ -74,6 +75,14 @@ public class UserServiceImpl implements UserService {
                 .activityCount(activityCount) // (Sẽ là null nếu là Khách hàng)
                 .gender(user.getGender() != null ? user.getGender().name() : null)
                 .dob(user.getDob() != null ? user.getDob().toString() : null)
+                .streetAddress(user.getStreetAddress())
+                .provinceCode(user.getProvinceCode())
+                .provinceName(user.getProvinceName())
+                .districtCode(user.getDistrictCode())
+                .districtName(user.getDistrictName())
+                .wardCode(user.getWardCode())
+                .wardName(user.getWardName())
+                // --- KẾT THÚC THÊM MỚI (MAP) ---
                 .build();
     }
     // === KẾT THÚC SỬA HÀM MAP ===
@@ -158,7 +167,7 @@ public class UserServiceImpl implements UserService {
         user.setFirstName(request.getFirstName().trim());
         user.setLastName(request.getLastName().trim());
         user.setPhone(request.getPhone());
-
+        user.setAvatar(request.getAvatar()); // Lưu avatar mới
         if (request.getGender() != null && !request.getGender().isEmpty()) {
             try { user.setGender(Gender.valueOf(request.getGender().toUpperCase())); }
             catch (IllegalArgumentException e) { /* Bỏ qua */ }
@@ -264,5 +273,23 @@ public class UserServiceImpl implements UserService {
         // 3. Nếu không vướng gì (count == 0), tiến hành xóa vĩnh viễn
         userRepository.delete(user);
     }
-    // === KẾT THÚC THÊM HÀM MỚI ===
+    @Override
+    @Transactional
+    public UserResponseDTO updateAddress(String userEmail, UpdateAddressRequestDTO request) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        user.setStreetAddress(request.getStreetAddress());
+        user.setProvinceCode(request.getProvinceCode());
+        user.setProvinceName(request.getProvinceName());
+        user.setDistrictCode(request.getDistrictCode());
+        user.setDistrictName(request.getDistrictName());
+        user.setWardCode(request.getWardCode());
+        user.setWardName(request.getWardName());
+
+        User updatedUser = userRepository.save(user);
+        // Trả về DTO đã được map đầy đủ thông tin
+        return mapToUserDTO(updatedUser);
+    }
+
 }

@@ -2,6 +2,7 @@ package com.poly.bezbe.controller;
 
 import com.poly.bezbe.dto.request.EmployeeRequestDTO;
 import com.poly.bezbe.dto.request.UserRequestDTO;
+import com.poly.bezbe.dto.request.auth.UpdateAddressRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdatePasswordRequestDTO;
 import com.poly.bezbe.dto.request.auth.UpdateProfileRequestDTO;
 import com.poly.bezbe.dto.response.ApiResponseDTO;
@@ -110,6 +111,15 @@ public class UserController {
         String message = userService.updatePassword(request);
         return ResponseEntity.ok(ApiResponseDTO.success(null, message));
     }
+    @PutMapping("/profile/address")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponseDTO<UserResponseDTO>> updateAddress(
+            @Valid @RequestBody UpdateAddressRequestDTO request) {
+
+        String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        UserResponseDTO updatedUser = userService.updateAddress(userEmail, request);
+        return ResponseEntity.ok(ApiResponseDTO.success(updatedUser, "Cập nhật địa chỉ thành công"));
+    }
     @DeleteMapping("/permanent-delete/{id}")
     @PreAuthorize("hasAuthority('ADMIN')")
     public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteUser(@PathVariable Long id) {
@@ -117,4 +127,5 @@ public class UserController {
         userService.permanentDeleteUser(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn người dùng thành công"));
     }
+
 }

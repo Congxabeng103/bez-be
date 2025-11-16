@@ -1,4 +1,4 @@
-package com.poly.bezbe.service.impl; // <-- Chú ý package con 'impl'
+package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.dto.request.CouponRequestDTO;
 import com.poly.bezbe.dto.response.CouponResponseDTO;
@@ -8,11 +8,13 @@ import com.poly.bezbe.exception.BusinessRuleException;
 import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.CouponRepository;
-import com.poly.bezbe.service.CouponService; // <-- Import interface
+import com.poly.bezbe.service.CouponService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +23,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Service // <-- @Service được đặt ở đây
+@Service
 @RequiredArgsConstructor
-public class CouponServiceImpl implements CouponService { // <-- Implement interface
+public class CouponServiceImpl implements CouponService {
 
     private final CouponRepository couponRepository;
 
-    // Hàm private này là chi tiết nội bộ, chỉ nằm ở Impl
     private CouponResponseDTO mapToCouponDTO(Coupon coupon) {
         return CouponResponseDTO.builder()
                 .id(coupon.getId())
@@ -45,10 +46,7 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
                 .build();
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional(readOnly = true)
     public PageResponseDTO<CouponResponseDTO> getAllCoupons(Pageable pageable, String searchTerm, String status) {
         Page<Coupon> couponPage;
@@ -65,9 +63,27 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
     }
 
     /**
-     * {@inheritDoc}
+     * (HÀM HELPER)
+     * Ném lỗi nếu admin cố kích hoạt coupon không hợp lệ.
      */
-    @Override // <-- Thêm @Override
+    private boolean determineActiveStatus(LocalDate startDate, LocalDate endDate, boolean formIsActive) {
+        if (!formIsActive) {
+            return false;
+        }
+        LocalDate today = LocalDate.now();
+
+        if (endDate.isBefore(today)) {
+            throw new BusinessRuleException("Lỗi: Không thể kích hoạt. Ngày kết thúc đã ở trong quá khứ.");
+        }
+
+        if (startDate.isAfter(today)) {
+            throw new BusinessRuleException("Lỗi: Không thể kích hoạt. Ngày bắt đầu là ở trong tương lai. (Bỏ tick 'Kích hoạt' để lưu nháp)");
+        }
+
+        return true;
+    }
+
+    @Override
     @Transactional
     public CouponResponseDTO createCoupon(CouponRequestDTO request) {
         String code = request.getCode().trim().toUpperCase();
@@ -75,26 +91,29 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
             throw new DuplicateResourceException("Mã coupon '" + code + "' đã tồn tại.");
         }
 
+        boolean newActiveStatus = determineActiveStatus(
+                request.getStartDate(),
+                request.getEndDate(),
+                request.isActive()
+        );
+
         Coupon coupon = Coupon.builder()
                 .code(code)
                 .description(request.getDescription())
                 .discountValue(request.getDiscountValue())
                 .maxDiscountAmount(request.getMaxDiscountAmount())
                 .minOrderAmount(request.getMinOrderAmount())
-                .usageLimit(request.getUsageLimit() == null ? 0 : request.getUsageLimit()) // (Nếu 0 là không giới hạn)
-                .usedCount(0) // Mới tạo
+                .usageLimit(request.getUsageLimit() == null ? 0 : request.getUsageLimit())
+                .usedCount(0)
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
-                .active(request.isActive())
+                .active(newActiveStatus) // Dùng trạng thái đã validate
                 .build();
         Coupon saved = couponRepository.save(coupon);
         return mapToCouponDTO(saved);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public CouponResponseDTO updateCoupon(Long id, CouponRequestDTO request) {
         Coupon coupon = couponRepository.findById(id)
@@ -106,6 +125,12 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
             throw new DuplicateResourceException("Mã coupon '" + code + "' đã được sử dụng.");
         }
 
+        boolean newActiveStatus = determineActiveStatus(
+                request.getStartDate(),
+                request.getEndDate(),
+                request.isActive()
+        );
+
         coupon.setCode(code);
         coupon.setDescription(request.getDescription());
         coupon.setDiscountValue(request.getDiscountValue());
@@ -114,22 +139,18 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
         coupon.setUsageLimit(request.getUsageLimit() == null ? 0 : request.getUsageLimit());
         coupon.setStartDate(request.getStartDate());
         coupon.setEndDate(request.getEndDate());
-        coupon.setActive(request.isActive());
+        coupon.setActive(newActiveStatus); // Dùng trạng thái đã validate
 
         Coupon updated = couponRepository.save(coupon);
         return mapToCouponDTO(updated);
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public void deleteCoupon(Long id) {
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Coupon: " + id));
-
-        coupon.setActive(false); // <-- SOFT DELETE
+        coupon.setActive(false);
         couponRepository.save(coupon);
     }
 
@@ -137,54 +158,54 @@ public class CouponServiceImpl implements CouponService { // <-- Implement inter
     @Transactional(readOnly = true)
     public Coupon validateCoupon(String code, BigDecimal subtotal) {
         if (code == null || code.trim().isEmpty()) {
-            return null; // Không áp dụng coupon
+            return null;
         }
-
-        // 1. Tìm coupon
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code.trim())
                 .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không hợp lệ"));
-
-        // 2. Kiểm tra Active
         if (!coupon.isActive()) {
             throw new BusinessRuleException("Mã giảm giá đã hết hạn sử dụng");
         }
-
-        // 3. Kiểm tra ngày
         LocalDate today = LocalDate.now();
         if (today.isBefore(coupon.getStartDate()) || today.isAfter(coupon.getEndDate())) {
             throw new BusinessRuleException("Mã giảm giá không nằm trong thời gian áp dụng");
         }
-
-        // 4. Kiểm tra lượt dùng
-        // (Giả sử 0 = không giới hạn)
         if (coupon.getUsageLimit() > 0 && coupon.getUsedCount() >= coupon.getUsageLimit()) {
             throw new BusinessRuleException("Mã giảm giá đã hết lượt sử dụng");
         }
-
-        // 5. Kiểm tra giá trị đơn hàng tối thiểu
         if (subtotal.compareTo(coupon.getMinOrderAmount()) < 0) {
             throw new BusinessRuleException("Đơn hàng chưa đạt giá trị tối thiểu ("
                     + coupon.getMinOrderAmount() + "đ) để áp dụng mã");
         }
-
         return coupon;
     }
+
     @Override
-    @Transactional // Đảm bảo thao tác DB nhất quán
+    @Transactional
     public void permanentDeleteCoupon(Long id) {
-        // 1. Tìm coupon
         Coupon coupon = couponRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy coupon với ID: " + id));
-
-        // 2. Kiểm tra điều kiện (quan trọng!)
         if (coupon.getUsedCount() > 0) {
-            // Nếu đã có người dùng, không cho phép xóa vĩnh viễn
-            // Ném ra lỗi để báo cho frontend
             throw new IllegalStateException("Không thể xóa vĩnh viễn coupon đã có lượt sử dụng.");
         }
-
-        // 3. Nếu điều kiện thỏa mãn (usedCount == 0), tiến hành xóa
         couponRepository.delete(coupon);
-        // Hoặc couponRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CouponResponseDTO> getPublicActiveCoupons(int size) {
+        Pageable pageable = PageRequest.of(0, size, Sort.by("endDate").ascending());
+        List<Coupon> coupons = couponRepository.findByActive(true, pageable);
+        return coupons.stream()
+                .map(this::mapToCouponDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CouponResponseDTO> getAllPublicActiveCoupons() {
+        List<Coupon> coupons = couponRepository.findAllByActive(true);
+        return coupons.stream()
+                .map(this::mapToCouponDTO)
+                .collect(Collectors.toList());
     }
 }
