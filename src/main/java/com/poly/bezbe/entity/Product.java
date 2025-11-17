@@ -40,7 +40,7 @@ public class Product {
     @Column(name = "description", columnDefinition = "NVARCHAR(MAX)") // <-- Thêm rõ ràng
     private String description;
 
-    @Column(name = "price", nullable = true, precision = 10, scale = 2)
+    @Column(name = "price", nullable = true, precision = 10)
     private BigDecimal price;
 
     @Column(name = "image_url", columnDefinition = "NVARCHAR(512)") // <-- SỬA

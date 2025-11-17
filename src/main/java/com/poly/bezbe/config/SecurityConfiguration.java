@@ -35,7 +35,9 @@ public class SecurityConfiguration {
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration);
+        // Sửa: Áp dụng CORS cho tất cả API (/**) thay vì chỉ (/api/**)
+        // để bao gồm cả /api/v1/contact
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 
@@ -46,7 +48,7 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
 
-                        // 1. API CÔNG KHAI (SỬA Ở ĐÂY)
+                        // 1. API CÔNG KHAI
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 // (Các API cũ của bạn)
@@ -58,16 +60,16 @@ public class SecurityConfiguration {
                                 "/api/v1/variants/find",
                                 "/api/v1/payment/vnpay-return/**",
                                 "/api/v1/payment/vnpay-ipn/**",
-
-                                // (Các API public bạn đã thêm)
                                 "/api/v1/promotions/public/latest",
                                 "/api/v1/coupons/public",
-
-                                // (THÊM 2 DÒNG CÒN THIẾU NÀY VÀO)
-                                "/api/v1/promotions/public/active", // <-- Cho phép slider
-                                "/api/v1/coupons/public/all"        // <-- Cho phép trang "Xem tất cả"
-
+                                "/api/v1/promotions/public/active",
+                                "/api/v1/coupons/public/all"
                         ).permitAll()
+
+                        // ===============================================
+                        // ⭐ THÊM DÒNG NÀY ĐỂ MỞ FORM CONTACT
+                        .requestMatchers(HttpMethod.POST, "/api/v1/contact").permitAll()
+                        // ===============================================
 
                         // 2. API CỦA USER (Giữ nguyên)
                         .requestMatchers(HttpMethod.GET,
@@ -83,7 +85,7 @@ public class SecurityConfiguration {
                                 "/api/v1/payment/{orderId}/retry-vnpay"
                         ).authenticated()
 
-                        // (Tất cả các rule 3, 4, 5, 6 khác giữ nguyên y hệt code của bạn)
+                        // (Tất cả các rule 3, 4, 5, 6 khác giữ nguyên)
                         // 3. API VẬN HÀNH (STAFF, MANAGER, ADMIN)
                         .requestMatchers(
                                 "/api/v1/orders/**",

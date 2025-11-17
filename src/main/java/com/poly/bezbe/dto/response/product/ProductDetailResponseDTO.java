@@ -13,4 +13,5 @@ public class ProductDetailResponseDTO {
 
     // Danh sách các thuộc tính và giá trị (vd: Size: [S, M, L], Color: [Đỏ, Xanh])
     private List<ProductOptionResponseDTO> attributes; // <-- MỚI
+    private List<ProductImageResponseDTO> galleryImages;
 }

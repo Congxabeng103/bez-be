@@ -46,4 +46,5 @@ public interface EmailService {
     void sendDisputeReceivedEmail(Order order, String reason);
     void sendOrderRefundNotificationEmail(Order order, BigDecimal refundAmount);
     void sendOrderDeliveredEmail(Order order);
+    void sendContactFormToAdmin(String fromName, String fromEmail, String subject, String message);
 }

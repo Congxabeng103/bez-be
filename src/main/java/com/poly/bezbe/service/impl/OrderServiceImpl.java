@@ -502,9 +502,9 @@ public class OrderServiceImpl implements OrderService {
                 if (oldStatus == OrderStatus.PENDING) {
                     if (order.getPaymentMethod() == PaymentMethod.COD || order.getPaymentStatus() == PaymentStatus.PAID) {
                         subtractStockForOrder(order);
-                        logDescription = "Admin xác nhận đơn hàng, đã trừ kho.";
+                        logDescription = "Đã xác nhận đơn hàng, đã trừ kho.";
                     } else {
-                        logDescription = "Admin xác nhận đơn hàng (chưa trừ kho, chờ thanh toán).";
+                        logDescription = "Đã xác nhận đơn hàng (chưa trừ kho, chờ thanh toán).";
                     }
                     order.setOrderStatus(OrderStatus.CONFIRMED);
                 }
@@ -543,7 +543,7 @@ public class OrderServiceImpl implements OrderService {
                 break;
             case CANCELLED:
                 if (adminNote == null || adminNote.isBlank()) {
-                    throw new BusinessRuleException("Admin hủy đơn bắt buộc phải nhập lý do.");
+                    throw new BusinessRuleException("Để hủy đơn bắt buộc phải nhập lý do.");
                 }
 
                 // (Logic "Smart Stock" của bạn đã đúng)
@@ -590,7 +590,7 @@ public class OrderServiceImpl implements OrderService {
             case DISPUTE:
                 order.setOrderStatus(OrderStatus.DISPUTE);
                 order.setDisputeReason(adminNote); // Admin cũng có thể set lý do khiếu nại
-                logDescription = "Admin đánh dấu đơn hàng là 'Khiếu nại'. Lý do: " + (adminNote != null ? adminNote : "Không có");
+                logDescription = "Đã đánh dấu đơn hàng là 'Khiếu nại'. Lý do: " + (adminNote != null ? adminNote : "Không có");
                 break;
             default:
                 throw new BusinessRuleException("Trạng thái cập nhật không hợp lệ: " + newStatus);
@@ -724,7 +724,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     public void subtractStockForOrder(Order order) {
-        // ... (Code của bạn giữ nguyên) ...
         for (OrderItem item : order.getOrderItems()) {
             Variant variant = item.getVariant();
             if (variant.getStockQuantity() < item.getQuantity()) {

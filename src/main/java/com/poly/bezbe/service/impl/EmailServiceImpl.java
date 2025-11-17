@@ -180,4 +180,54 @@ public class EmailServiceImpl implements EmailService { // <-- Implement interfa
             System.err.println("Lỗi khi gửi mail khiếu nại: " + e.getMessage());
         }
     }
+
+    @Async
+    @Override
+    public void sendContactFormToAdmin(String fromName, String fromEmail, String subject, String message) {
+        try {
+            // 1. CẤU HÌNH EMAIL ADMIN (Người nhận)
+            // (Bạn nên đặt email này trong application.properties)
+            String adminEmail = "congdt04@gmail.com";
+
+            // 2. TẠO CHỦ ĐỀ (Giống style của bạn)
+            String emailSubject = String.format(
+                    "Tin nhắn mới từ Form Liên Hệ: %s",
+                    (subject != null && !subject.isEmpty()) ? subject : "(Không có chủ đề)"
+            );
+
+            // 3. TẠO NỘI DUNG HTML (Giống style của bạn)
+            String htmlBody = String.format(
+                    "<h1>Tin nhắn mới từ Form Liên Hệ</h1>" +
+                            "<p>Bạn nhận được tin nhắn từ:</p>" +
+                            "<ul>" +
+                            "<li><b>Tên:</b> %s</li>" +
+                            "<li><b>Email (để trả lời):</b> %s</li>" +
+                            "</ul>" +
+                            "<h3>Nội dung:</h3>" +
+                            // Thêm style cho dễ đọc
+                            "<p style=\"padding: 12px; border: 1px solid #e0e0e0; background: #f9f9f9; border-radius: 5px;\">%s</p>",
+                    fromName,
+                    fromEmail,
+                    message.replace("\n", "<br>") // Đảm bảo xuống dòng
+            );
+
+            // 4. TẠO HELPER (Không dùng sendHtmlEmail vì cần setReplyTo)
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "utf-8");
+
+            helper.setTo(adminEmail);
+            helper.setSubject(emailSubject);
+            helper.setText(htmlBody, true);
+
+            // 5. ĐÂY LÀ PHẦN QUAN TRỌNG NHẤT
+            helper.setReplyTo(fromEmail);
+
+            mailSender.send(mimeMessage);
+
+        } catch (MessagingException e) {
+            // 6. XỬ LÝ LỖI (Giống style của bạn)
+            System.err.println("Lỗi khi gửi mail contact form: " + e.getMessage());
+        }
+
+}
 }

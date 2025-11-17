@@ -415,12 +415,22 @@ public class ProductServiceImpl implements ProductService {
                             .values(valueDTOs)
                             .build();
                 }).collect(Collectors.toList());
-
+        // === LOGIC MỚI: LẤY GALLERY ẢNH ===
+        // (Sử dụng logic map giống hệt ProductImageServiceImpl của bạn)
+        List<ProductImageResponseDTO> galleryDTOs = productImageRepository.findByProductId(productId)
+                .stream()
+                .map(img -> ProductImageResponseDTO.builder()
+                        .id(img.getId())
+                        .imageUrl(img.getImageUrl())
+                        .build())
+                .collect(Collectors.toList());
+        // === KẾT THÚC LOGIC MỚI ===
 
         return ProductDetailResponseDTO.builder()
                 .product(productDTO)
                 .relatedProducts(related)
                 .attributes(attributeDTOs)
+                .galleryImages(galleryDTOs)
                 .build();
     }
     @Override
