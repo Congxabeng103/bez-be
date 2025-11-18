@@ -65,13 +65,10 @@ public class SecurityConfiguration {
                                 "/api/v1/promotions/public/active",
                                 "/api/v1/coupons/public/all"
                         ).permitAll()
-
-                        // ===============================================
-                        // ⭐ THÊM DÒNG NÀY ĐỂ MỞ FORM CONTACT
                         .requestMatchers(HttpMethod.POST, "/api/v1/contact").permitAll()
-                        // ===============================================
 
-                        // 2. API CỦA USER (Giữ nguyên)
+
+                        // 2. API CỦA USER (ĐÃ ĐĂNG NHẬP)
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/coupons/validate",
                                 "/api/v1/orders/my-orders",
@@ -85,7 +82,14 @@ public class SecurityConfiguration {
                                 "/api/v1/payment/{orderId}/retry-vnpay"
                         ).authenticated()
 
-                        // (Tất cả các rule 3, 4, 5, 6 khác giữ nguyên)
+                        // ===============================================
+                        // ⭐ SỬA LỖI: THÊM 3 DÒNG NÀY VÀO
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/users/profile").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/users/update-password").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/users/profile/address").authenticated()
+                        // ===============================================
+
+
                         // 3. API VẬN HÀNH (STAFF, MANAGER, ADMIN)
                         .requestMatchers(
                                 "/api/v1/orders/**",
@@ -105,7 +109,7 @@ public class SecurityConfiguration {
                                 "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/j/v1/products/**",
+                                "/api/j/v1/products/**", // <-- Bạn có 1 chữ "j" thừa ở đây, nên kiểm tra lại
                                 "/api/v1/categories/**",
                                 "/api/v1/brands/**",
                                 "/api/v1/attributes/**",
@@ -125,6 +129,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/**").hasAnyAuthority("ADMIN", "MANAGER")
 
                         // 5. API ADMIN TỐI CAO
+                        // (Quy tắc này giờ sẽ bắt các API còn lại của /users/
+                        //  như /employees, /permanent-delete/{id}, v.v.)
                         .requestMatchers("/api/v1/users/**").hasAuthority("ADMIN")
 
                         // 6. Mọi request còn lại
