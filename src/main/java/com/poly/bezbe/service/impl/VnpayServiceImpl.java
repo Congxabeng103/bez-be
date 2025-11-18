@@ -37,15 +37,12 @@ public class VnpayServiceImpl implements VnpayService {
      */
     @Override
     public String createPaymentUrl(HttpServletRequest req, long orderId, BigDecimal amount) {
-        // VNPAY yêu cầu số tiền là số nguyên (nhân 100)
-        String vnp_Amount = amount.multiply(new BigDecimal("100")).toBigInteger().toString();
+        // ... (Giữ nguyên phần đầu) ...
 
-        // Tạo mã tham chiếu giao dịch (vnp_TxnRef) duy nhất cho mỗi lần thanh toán
-        // Định dạng: {orderId}_{random}
+        String vnp_Amount = amount.multiply(new BigDecimal("100")).toBigInteger().toString();
         String vnp_TxnRef = orderId + "_" + UUID.randomUUID().toString().substring(0, 4);
         String vnp_IpAddr = getIpAddress(req);
 
-        // Map chứa các tham số gửi lên VNPAY
         Map<String, String> vnp_Params = new HashMap<>();
         vnp_Params.put("vnp_Version", "2.1.0");
         vnp_Params.put("vnp_Command", "pay");
@@ -56,32 +53,33 @@ public class VnpayServiceImpl implements VnpayService {
         vnp_Params.put("vnp_OrderInfo", "Thanh toan don hang " + vnp_TxnRef);
         vnp_Params.put("vnp_OrderType", "other");
         vnp_Params.put("vnp_Locale", "vn");
-
-        // URL VNPAY sẽ gọi về server BE khi user hoàn tất (Luồng 1)
         vnp_Params.put("vnp_ReturnUrl", vnpayConfig.getVnp_ReturnUrl());
-
-        // (Bạn đang comment dòng này và cấu hình IPN cứng trên Merchant, điều này OK)
-        // vnp_Params.put("vnp_IpnUrl", vnpayConfig.getVnp_IpnUrl());
-
         vnp_Params.put("vnp_IpAddr", vnp_IpAddr);
 
-        // Cài đặt thời gian
-        Calendar cld = Calendar.getInstance(TimeZone.getTimeZone("Etc/GMT+7"));
+        // --- [FIX LỖI TIMEZONE TẠI ĐÂY] ---
+
+        // 1. Tạo formatter và ÉP BUỘC múi giờ là Asia/Ho_Chi_Minh
+        // (Dù server có nằm ở Mỹ hay Châu Âu thì code vẫn lấy giờ VN)
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMddHHmmss");
+        TimeZone timeZone = TimeZone.getTimeZone("Asia/Ho_Chi_Minh");
+        formatter.setTimeZone(timeZone);
+
+        // 2. Lấy thời gian hiện tại theo múi giờ đó
+        Calendar cld = Calendar.getInstance(timeZone);
+
         String vnp_CreateDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_CreateDate", vnp_CreateDate);
 
-        // Cài đặt thời gian hết hạn (ví dụ: 15 phút)
+        // 3. Cộng thêm 15 phút cho thời gian hết hạn
         cld.add(Calendar.MINUTE, 15);
         String vnp_ExpireDate = formatter.format(cld.getTime());
         vnp_Params.put("vnp_ExpireDate", vnp_ExpireDate);
 
-        // --- Tạo Chữ ký (vnp_SecureHash) ---
-        // 1. Sắp xếp các tham số theo thứ tự alphabet
+        // --- (Phần tạo chữ ký giữ nguyên) ---
         List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
         Collections.sort(fieldNames);
 
-        // 2. Tạo chuỗi hash data (key=value&key=value...)
+        // ... (Giữ nguyên phần còn lại) ...
         StringBuilder hashData = new StringBuilder();
         StringBuilder query = new StringBuilder();
         Iterator<String> itr = fieldNames.iterator();
@@ -89,28 +87,21 @@ public class VnpayServiceImpl implements VnpayService {
             String fieldName = itr.next();
             String fieldValue = vnp_Params.get(fieldName);
             if (fieldValue != null && !fieldValue.isEmpty()) {
-                // Build hash data
                 hashData.append(fieldName);
                 hashData.append('=');
                 hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
-
-                // Build query string
                 query.append(URLEncoder.encode(fieldName, StandardCharsets.UTF_8));
                 query.append('=');
                 query.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8));
-
                 if (itr.hasNext()) {
                     query.append('&');
                     hashData.append('&');
                 }
             }
         }
-
-        // 3. Tạo URL và chữ ký
         String queryUrl = query.toString();
         String vnp_SecureHash = hmacSHA512(vnpayConfig.getVnp_HashSecret(), hashData.toString());
         queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
-
         return vnpayConfig.getVnp_ApiUrl() + "?" + queryUrl;
     }
 
