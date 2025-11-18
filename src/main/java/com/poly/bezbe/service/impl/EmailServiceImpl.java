@@ -31,7 +31,7 @@ public class EmailServiceImpl implements EmailService { // <-- Implement interfa
 
         // true = multipart message (cần thiết cho HTML/attachments)
         // "utf-8" = hỗ trợ tiếng Việt
-        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "utf-8");
+        MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, false, "utf-8");
 
         helper.setTo(to);
         helper.setSubject(subject);
@@ -204,7 +204,6 @@ public class EmailServiceImpl implements EmailService { // <-- Implement interfa
                             "<li><b>Email (để trả lời):</b> %s</li>" +
                             "</ul>" +
                             "<h3>Nội dung:</h3>" +
-                            // Thêm style cho dễ đọc
                             "<p style=\"padding: 12px; border: 1px solid #e0e0e0; background: #f9f9f9; border-radius: 5px;\">%s</p>",
                     fromName,
                     fromEmail,
