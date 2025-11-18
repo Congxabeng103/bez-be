@@ -1,5 +1,6 @@
 package com.poly.bezbe.controller;
 
+import com.poly.bezbe.config.VnpayConfig;
 import com.poly.bezbe.dto.response.ApiResponseDTO;
 import com.poly.bezbe.dto.response.OrderResponseDTO;
 import com.poly.bezbe.dto.response.RefundResponseDTO;
@@ -21,32 +22,28 @@ import org.springframework.web.servlet.view.RedirectView;
 public class PaymentController {
 
     private final OrderService orderService;
-
+    private final VnpayConfig vnpayConfig;
     // VNPAY SẼ GỌI VÀO ĐƯỜNG DẪN NÀY (PUBLIC)
     @GetMapping("/vnpay-return")
     public RedirectView handleVnpayReturn(HttpServletRequest request) {
 
-        // 1. Hàm này giờ chỉ lấy thông tin "hiện tại"
         OrderResponseDTO orderResponse = orderService.handleVnpayReturn(request);
-
         String orderId = String.valueOf(orderResponse.getOrderId());
 
-        // 2. Lấy trạng thái thanh toán HIỆN TẠI từ DB
-        String paymentStatus = orderResponse.getPaymentStatus();
+        // 3. SỬA LOGIC REDIRECT: Gọi từ Config ra
+        // Nó sẽ lấy link: https://white-flower.../order-confirmation
+        String baseUrl = vnpayConfig.getVnp_FrontendReturnUrl();
 
-        // 3. SỬA LOGIC REDIRECT
-        String redirectUrl = "http://localhost:3000/order-confirmation?orderId=" + orderId;
+        String redirectUrl = baseUrl + "?orderId=" + orderId;
 
         // Lấy "gợi ý" từ VNPAY
         String vnpayStatus = request.getParameter("vnp_ResponseCode");
         if (vnpayStatus != null && !vnpayStatus.equals("00")) {
-            // Nếu VNPAY gợi ý là lỗi, thêm status=failed ngay
             redirectUrl += "&status=failed";
         }
 
         return new RedirectView(redirectUrl);
     }
-
     /**
      * API cho User bấm nút "Thanh toán lại" (cho đơn VNPAY PENDING)
      */
