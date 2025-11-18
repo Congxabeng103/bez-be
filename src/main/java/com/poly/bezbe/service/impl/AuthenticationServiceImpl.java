@@ -13,6 +13,7 @@ import com.poly.bezbe.service.AuthenticationService; // <-- Import interface
 import com.poly.bezbe.service.EmailService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -34,7 +35,8 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
     private final EmailService emailService;
 
     // Đặt URL frontend của bạn ở đây (React app)
-    private final String clientUrl = "http://localhost:3000";
+    @Value("${app.client-url}") // Lấy giá trị từ application.properties
+    private String clientUrl; // Bỏ 'final' và giá trị hardcode
 
     /**
      * {@inheritDoc}

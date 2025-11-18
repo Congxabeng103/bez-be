@@ -1,11 +1,4 @@
-/*
-================================================================
-KỊCH BẢN CHÈN DỮ LIỆU MẪU V2 (SQL SERVER)
-================================================================
-CẢNH BÁO: Script này sẽ XÓA SẠCH dữ liệu trong các bảng bên dưới.
-RIÊNG BẢNG [users] SẼ ĐƯỢC GIỮ NGUYÊN.
-================================================================
-*/
+
 
 -- TẮT KIỂM TRA KHÓA NGOẠI
 EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all"
