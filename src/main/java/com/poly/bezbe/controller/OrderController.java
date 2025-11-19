@@ -44,10 +44,11 @@ public class OrderController {
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<UserOrderDTO>>> getMyOrders(
             @AuthenticationPrincipal User user,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "5") int size
+            @RequestParam(defaultValue = "5") int size,
+            @RequestParam(defaultValue = "ALL") String status // <-- THÊM DÒNG NÀY
     ) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        PageResponseDTO<UserOrderDTO> orderPage = orderService.getMyOrders(user, pageable);
+        PageResponseDTO<UserOrderDTO> orderPage = orderService.getMyOrders(user, pageable,status);
         return ResponseEntity.ok(ApiResponseDTO.success(orderPage, "Lấy đơn hàng thành công"));
     }
 
@@ -184,27 +185,5 @@ public class OrderController {
     }
 
 
-    // --- CÁC API CŨ (Bạn nên xóa nếu đã dùng /status) ---
-    // (Nếu bạn vẫn dùng, hãy thêm phân quyền)
-    @PutMapping("/{orderId}/confirm")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')")
-    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> confirmOrder(
-            @PathVariable Long orderId,
-            @AuthenticationPrincipal User user
-    ) {
-        OrderResponseDTO orderResponse = orderService.adminConfirmOrder(orderId);
-        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Xác nhận đơn hàng thành công, đã trừ kho."));
-    }
 
-    @PutMapping("/{orderId}/cancel")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')")
-    public ResponseEntity<ApiResponseDTO<OrderResponseDTO>> cancelOrder(
-            @PathVariable Long orderId,
-            @AuthenticationPrincipal User user
-    ) {
-        // (Lưu ý: Nếu hàm này có thể hủy đơn SHIPPING,
-        // bạn phải thêm logic check quyền trong service)
-        OrderResponseDTO orderResponse = orderService.adminCancelOrder(orderId);
-        return ResponseEntity.ok(ApiResponseDTO.success(orderResponse, "Hủy đơn hàng thành công, đã trả hàng về kho (nếu cần)."));
-    }
 }

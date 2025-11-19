@@ -229,4 +229,22 @@ public class EmailServiceImpl implements EmailService { // <-- Implement interfa
         }
 
 }
+    @Override
+    public void sendOrderConfirmedEmail(Order order) {
+        try {
+            String subject = "Đơn hàng #" + order.getOrderNumber() + " đã được xác nhận";
+            String htmlBody = String.format(
+                    "<h1>Đơn hàng đã được xác nhận!</h1>" +
+                            "<p>Chào %s,</p>" +
+                            "<p>Tin vui! Đơn hàng #%s của bạn đã được cửa hàng kiểm tra và xác nhận.</p>" +
+                            "<p>Chúng tôi đang tiến hành đóng gói sản phẩm và sẽ bàn giao cho đơn vị vận chuyển sớm nhất.</p>" +
+                            "<p>Cảm ơn bạn đã mua sắm tại BezBe Store!</p>",
+                    order.getCustomerName(),
+                    order.getOrderNumber()
+            );
+            sendHtmlEmail(order.getEmail(), subject, htmlBody);
+        } catch (MessagingException e) {
+            System.err.println("Lỗi khi gửi mail xác nhận (Admin): " + e.getMessage());
+        }
+    }
 }

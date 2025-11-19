@@ -20,17 +20,7 @@ public interface OrderService {
      * Xử lý kết quả VNPAY trả về
      */
     OrderResponseDTO handleVnpayReturn(HttpServletRequest request);
-    /**
-     * Admin xác nhận đơn hàng (thường là COD) và trừ kho
-     */
-    OrderResponseDTO adminConfirmOrder(Long orderId); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
 
-    /**
-     * Admin hủy đơn hàng. Tự động trả hàng về kho nếu cần.
-     */
-    OrderResponseDTO adminCancelOrder(Long orderId); // (Gợi ý: Hàm này nên gọi updateOrderStatus)
-
-    // --- THÊM 3 HÀM MỚI CHO ADMIN PAGE ---
 
     /** Lấy danh sách đơn hàng cho Admin (có lọc, tìm kiếm, phân trang) */
     PageResponseDTO<AdminOrderDTO> getAdminOrders(Pageable pageable, String status, String searchTerm);
@@ -79,5 +69,5 @@ public interface OrderService {
     List<OrderAuditLogResponseDTO> getMyOrderHistory(Long orderId, User user);
     RefundResponseDTO confirmCodRefund(Long orderId, User currentUser);
     AdminOrderDTO confirmStockReturn(Long orderId, User currentUser); // <-- THÊM HÀM NÀY
-
+    PageResponseDTO<UserOrderDTO> getMyOrders(User user, Pageable pageable, String status);
 }

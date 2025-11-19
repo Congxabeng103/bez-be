@@ -98,4 +98,5 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "AND (:searchTerm IS NULL OR o.orderNumber LIKE %:searchTerm% OR o.customerName LIKE %:searchTerm% OR o.phone LIKE %:searchTerm%)")
     Page<Order> findOrdersPendingStockReturn(String searchTerm, Pageable pageable);
     Integer countByUserId(Long userId);
+    Page<Order> findByUserAndOrderStatus(User user, OrderStatus orderStatus, Pageable pageable);
 }
