@@ -18,9 +18,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     // --- SỬA HÀM NÀY ---
     @EntityGraph(attributePaths = {"promotion", "category", "brand"})
-    @Query("SELECT p FROM Product p LEFT JOIN p.category c LEFT JOIN p.brand b " +
+    // Thêm LEFT JOIN p.promotion prom
+    @Query("SELECT p FROM Product p LEFT JOIN p.category c LEFT JOIN p.brand b LEFT JOIN p.promotion prom " +
             "WHERE " +
-            // 1. Lọc Status (active/inactive/all)
+            // 1. Lọc Status
             "(:status = 'ALL' OR p.active = :activeStatus) " +
 
             // 2. Lọc Search
@@ -29,22 +30,32 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             // 3. Lọc Category Name
             "AND (:categoryName IS NULL OR c.name = :categoryName) " +
 
-            // 4. Lọc Min Price
+            // 4. Lọc Brand Name (MỚI THÊM)
+            "AND (:brandName IS NULL OR b.name = :brandName) " +
+
+            // 5. Lọc Promotion ID (MỚI THÊM)
+            "AND (:promotionId IS NULL OR prom.id = :promotionId) " +
+
+            // 6. Lọc Min Price
             "AND (:minPrice IS NULL OR p.price >= :minPrice) " +
 
-            // 5. Lọc Max Price
+            // 7. Lọc Max Price
             "AND (:maxPrice IS NULL OR p.price <= :maxPrice) " +
 
-            // 6. === SỬA LOGIC LỌC BIẾN THỂ (Đã bỏ cặp ngoặc thừa) ===
-            "AND (:hasVariants IS NULL OR :hasVariants = false OR EXISTS (SELECT v FROM Variant v WHERE v.product = p AND v.active = true))") // <-- ĐÃ SỬA DÒNG NÀY
+            // 8. Lọc Biến thể
+            "AND (:hasVariants IS NULL OR :hasVariants = false OR EXISTS (SELECT v FROM Variant v WHERE v.product = p AND v.active = true))")
     Page<Product> searchAndFilterProducts(
             @Param("searchTerm") String searchTerm,
             @Param("status") String status,
-            @Param("activeStatus") boolean activeStatus, // Biến phụ trợ cho status
+            @Param("activeStatus") boolean activeStatus,
             @Param("categoryName") String categoryName,
             @Param("minPrice") Double minPrice,
             @Param("maxPrice") Double maxPrice,
-            @Param("hasVariants") Boolean hasVariants, // Tham số đã có
+            @Param("hasVariants") Boolean hasVariants,
+            // --- THÊM 2 PARAM NÀY ---
+            @Param("brandName") String brandName,
+            @Param("promotionId") Long promotionId,
+            // ------------------------
             Pageable pageable
     );
     // --- KẾT THÚC SỬA ĐỔI ---

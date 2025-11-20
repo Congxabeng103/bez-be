@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -53,34 +54,53 @@ public class DashboardServiceImpl implements DashboardService {
     }
 
     @Override
-    public List<MonthlyRevenueDTO> getMonthlyRevenue() {
-        // Lấy data thô (chỉ các tháng có doanh thu)
-        List<MonthlyRevenueDTO> revenueData = orderRepository.findMonthlyRevenue(SUCCESS_STATUS);
+    public List<MonthlyRevenueDTO> getMonthlyRevenue(Integer year, Long productId) {
+        // Nếu không truyền năm, mặc định lấy năm nay
+        int filterYear = (year == null) ? LocalDate.now().getYear() : year;
 
-        // Chuyển List sang Map (Key: "1", "2"...)
+        // Gọi Repo mới đã sửa ở bước trước
+        List<MonthlyRevenueDTO> revenueData = orderRepository.findMonthlyRevenueWithFilter(SUCCESS_STATUS, filterYear, productId);
+
         Map<String, MonthlyRevenueDTO> revenueMap = revenueData.stream()
                 .collect(Collectors.toMap(MonthlyRevenueDTO::getMonth, dto -> dto));
 
-        // Mảng tên 12 tháng
         String[] monthNames = {
                 "Thg 1", "Thg 2", "Thg 3", "Thg 4", "Thg 5", "Thg 6",
                 "Thg 7", "Thg 8", "Thg 9", "Thg 10", "Thg 11", "Thg 12"
         };
 
-        // Tạo list 12 tháng "chuẩn" (lấp đầy các tháng 0 doanh thu)
         return IntStream.range(0, 12)
                 .mapToObj(i -> {
-                    String monthKey = String.valueOf(i + 1); // "1", "2"...
-                    String monthName = monthNames[i]; // "Thg 1", "Thg 2"...
-
+                    String monthKey = String.valueOf(i + 1);
                     if (revenueMap.containsKey(monthKey)) {
                         MonthlyRevenueDTO dto = revenueMap.get(monthKey);
-                        dto.setMonth(monthName); // Đổi "1" -> "Thg 1"
+                        dto.setMonth(monthNames[i]);
                         return dto;
                     } else {
-                        return new MonthlyRevenueDTO(monthName, BigDecimal.ZERO, 0L);
+                        return new MonthlyRevenueDTO(monthNames[i], BigDecimal.ZERO, 0L);
                     }
                 })
+                .collect(Collectors.toList());
+    }
+
+    // --- 2. THÊM HÀM LẤY DANH SÁCH NĂM ---
+    @Override
+    public List<Integer> getAvailableYears() {
+        List<Integer> years = orderRepository.findDistinctYears(SUCCESS_STATUS);
+        // Nếu Database mới tinh chưa có đơn nào, trả về năm hiện tại để không lỗi Dropdown
+        if (years.isEmpty()) {
+            years.add(LocalDate.now().getYear());
+        }
+        return years;
+    }
+
+    // --- 3. THÊM HÀM LẤY DANH SÁCH SẢN PHẨM (Cho Dropdown) ---
+    @Override
+    public List<ProductSelectDTO> getAllProductsForFilter() {
+        // Lấy tất cả sản phẩm (Chỉ lấy ID và Tên)
+        // Bạn có thể tối ưu bằng cách viết query "SELECT new..." trong ProductRepository nếu muốn nhẹ hơn
+        return productRepository.findAll().stream()
+                .map(p -> new ProductSelectDTO(p.getId(), p.getName()))
                 .collect(Collectors.toList());
     }
 

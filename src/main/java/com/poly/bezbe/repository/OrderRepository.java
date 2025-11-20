@@ -49,18 +49,34 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // 1. CHO KPI: Đếm đơn hàng theo trạng thái
     long countByOrderStatus(OrderStatus status);
 
-    // 2. CHO KPI: Tính tổng doanh thu theo trạng thái
+    // 2. CHO KPI: Tính tổng doanh thu theo trạng thái (Tổng toàn bộ thời gian)
     @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.orderStatus = :status")
     BigDecimal sumTotalAmountByOrderStatus(@Param("status") OrderStatus status);
 
-    // 3. CHO BIỂU ĐỒ DOANH THU THÁNG
+    // 3. [SỬA LẠI] CHO BIỂU ĐỒ DOANH THU THÁNG (CÓ LỌC NĂM & SẢN PHẨM)
+    // Logic: Join sang OrderItems -> Variant -> Product để lọc ID sản phẩm
     @Query("SELECT new com.poly.bezbe.dto.response.MonthlyRevenueDTO(" +
-            "CAST(MONTH(o.createdAt) AS string), SUM(o.totalAmount), COUNT(o)) " +
+            "   CAST(MONTH(o.createdAt) AS string), " +
+            "   SUM(oi.totalPrice), " +  // Tính tổng tiền của từng Item (để chính xác khi lọc SP)
+            "   COUNT(DISTINCT o.id)) " + // Đếm số đơn (dùng DISTINCT vì join 1-n sẽ bị nhân bản dòng)
             "FROM Order o " +
-            "WHERE o.orderStatus = :status AND YEAR(o.createdAt) = YEAR(CURRENT_DATE) " +
+            "JOIN o.orderItems oi " +
+            "JOIN oi.variant v " +
+            "JOIN v.product p " +
+            "WHERE o.orderStatus = :status " +
+            "AND YEAR(o.createdAt) = :year " + // Lọc theo năm được chọn
+            "AND (:productId IS NULL OR p.id = :productId) " + // Lọc theo SP (nếu null thì lấy hết)
             "GROUP BY MONTH(o.createdAt) " +
             "ORDER BY MONTH(o.createdAt) ASC")
-    List<MonthlyRevenueDTO> findMonthlyRevenue(@Param("status") OrderStatus status);
+    List<MonthlyRevenueDTO> findMonthlyRevenueWithFilter(
+            @Param("status") OrderStatus status,
+            @Param("year") int year,
+            @Param("productId") Long productId
+    );
+
+    // 3.1 [THÊM MỚI] LẤY DANH SÁCH CÁC NĂM CÓ ĐƠN HÀNG (Cho Dropdown)
+    @Query("SELECT DISTINCT YEAR(o.createdAt) FROM Order o WHERE o.orderStatus = :status ORDER BY YEAR(o.createdAt) DESC")
+    List<Integer> findDistinctYears(@Param("status") OrderStatus status);
 
     // 4. CHO BIỂU ĐỒ DANH MỤC
     @Query("SELECT new com.poly.bezbe.dto.response.CategorySalesDTO(" +

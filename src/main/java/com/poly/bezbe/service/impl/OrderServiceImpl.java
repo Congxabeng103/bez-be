@@ -69,7 +69,7 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal couponDiscount = BigDecimal.ZERO;
         if (coupon != null) {
             couponDiscount = subtotal.multiply(coupon.getDiscountValue())
-                    .divide(new BigDecimal(100), 2, RoundingMode.HALF_UP);
+                    .divide(new BigDecimal(100), 0, RoundingMode.HALF_UP);
             if (coupon.getMaxDiscountAmount() != null && couponDiscount.compareTo(coupon.getMaxDiscountAmount()) > 0) {
                 couponDiscount = coupon.getMaxDiscountAmount();
             }
@@ -221,7 +221,7 @@ public class OrderServiceImpl implements OrderService {
 
                 auditLogService.logActivity(
                         order,
-                        "Hệ thống",
+                        "Khách hàng",
                         "Thanh toán VNPAY thành công (IPN).",
                         "paymentStatus",
                         PaymentStatus.PENDING.name(),
@@ -535,6 +535,8 @@ public class OrderServiceImpl implements OrderService {
                 .paymentStatus(order.getPaymentStatus())
                 .paymentMethod(order.getPaymentMethod())
                 .stockReturned(order.isStockReturned())
+                .email(order.getEmail())
+                .phone(order.getPhone())
                 .build();
     }
 
@@ -765,9 +767,19 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderAuditLogResponseDTO mapToAuditLogDTO(OrderAuditLog log) {
+        String staffEmail = null;
+
+        // 2. Kiểm tra xem log này có người thực hiện (User/Staff) hay không?
+        // Dựa vào lỗi của bạn, tên hàm trong Entity là getStaff()
+        if (log.getStaff() != null) {
+            staffEmail = log.getStaff().getEmail();
+        }
+        // Nếu Entity của bạn dùng getUser() thì sửa thành:
+        // if (log.getUser() != null) { staffEmail = log.getUser().getEmail(); }
         return OrderAuditLogResponseDTO.builder()
                 .id(log.getId())
                 .staffName(log.getStaffName())
+                .staffEmail(staffEmail)
                 .description(log.getDescription())
                 .fieldChanged(log.getFieldChanged())
                 .oldValue(log.getOldValue())

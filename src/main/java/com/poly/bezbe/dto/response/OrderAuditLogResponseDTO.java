@@ -12,6 +12,7 @@ public class OrderAuditLogResponseDTO {
     // Các trường FE cần
     private Long id;
     private String staffName;
+    private String staffEmail; // <--- THÊM DÒNG NÀY
     private String description;
     private String fieldChanged;
     private String oldValue;

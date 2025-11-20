@@ -30,7 +30,9 @@ public interface ProductService {
             String categoryName, // <-- Thêm
             Double minPrice,     // <-- Thêm
             Double maxPrice,      // <-- Thêm
-            Boolean hasVariants // <-- THÊM VÀO ĐÂY
+            Boolean hasVariants, // <-- THÊM VÀO ĐÂY
+            String brandName,
+            Long promotionId
     );
     /**
      * Tạo một sản phẩm mới.

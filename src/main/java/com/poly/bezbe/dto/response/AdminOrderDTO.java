@@ -21,5 +21,7 @@ public class AdminOrderDTO {
     private PaymentStatus paymentStatus;
     private PaymentMethod paymentMethod;
     private boolean stockReturned; // <-- THÊM DÒNG NÀY
+    private String email; // <-- THÊM VÀO ĐÂY
+    private String phone; // <-- Nên thêm cả SĐT nếu chưa có
 
 }

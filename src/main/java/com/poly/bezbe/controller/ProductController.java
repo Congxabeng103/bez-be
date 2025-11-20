@@ -33,7 +33,7 @@ public class ProductController {
     private final ProductImageService productImageService; // <-- THÊM INJECT
     // Lấy danh sách (Public - Cho phép tất cả)
     @GetMapping
-    @PreAuthorize("permitAll()") // (Hoặc để trống nếu SecurityConfig đã mở)
+    @PreAuthorize("permitAll()")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<ProductResponseDTO>>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size,
@@ -44,16 +44,22 @@ public class ProductController {
             @RequestParam(required = false) String categoryName,
             @RequestParam(required = false) Double minPrice,
             @RequestParam(required = false) Double maxPrice,
-            @RequestParam(required = false) Boolean hasVariants
+            @RequestParam(required = false) Boolean hasVariants,
+
+            // --- THÊM 2 DÒNG NÀY ---
+            @RequestParam(required = false) String brandName,
+            @RequestParam(required = false) Long promotionId
+            // -----------------------
     ) {
         // 1. Logic Sort (giữ nguyên)
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
 
-        // 2. Gọi Service với đầy đủ tham số
+        // 2. Gọi Service (Cập nhật thêm tham số brandName và promotionId)
+        // LƯU Ý: Hàm này sẽ báo đỏ cho đến khi bạn sửa file Service (xem hướng dẫn cuối bài)
         PageResponseDTO<ProductResponseDTO> productPage = productService.getAllProducts(
-                pageable, search, status, categoryName, minPrice, maxPrice,hasVariants
+                pageable, search, status, categoryName, minPrice, maxPrice, hasVariants, brandName, promotionId
         );
 
         // 3. Trả về (giữ nguyên)

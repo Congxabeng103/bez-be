@@ -128,7 +128,9 @@ public class ProductServiceImpl implements ProductService {
             String categoryName,
             Double minPrice,
             Double maxPrice,
-            Boolean hasVariants
+            Boolean hasVariants,
+            String brandName,
+            Long promotionId
     ) {
         boolean searching = searchTerm != null && !searchTerm.isBlank();
         String search = searching ? searchTerm.trim() : null;
@@ -143,6 +145,8 @@ public class ProductServiceImpl implements ProductService {
                 minPrice,
                 maxPrice,
                 hasVariants, // <-- Tham số này từ trang shop
+                brandName,   // Thêm
+                promotionId, // Thêm
                 pageable
         );
 

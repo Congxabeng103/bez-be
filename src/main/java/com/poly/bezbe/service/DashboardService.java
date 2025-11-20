@@ -1,14 +1,14 @@
 package com.poly.bezbe.service;
 
-import com.poly.bezbe.dto.response.CategorySalesDTO;
-import com.poly.bezbe.dto.response.DashboardStatsDTO;
-import com.poly.bezbe.dto.response.MonthlyRevenueDTO;
-import com.poly.bezbe.dto.response.TopSellingProductDTO;
+import com.poly.bezbe.dto.response.*;
+
 import java.util.List;
 
 public interface DashboardService {
     DashboardStatsDTO getDashboardStats();
-    List<MonthlyRevenueDTO> getMonthlyRevenue();
+    List<MonthlyRevenueDTO> getMonthlyRevenue(Integer year, Long productId);
     List<CategorySalesDTO> getCategorySales();
     List<TopSellingProductDTO> getTopSellingProducts();
+    List<Integer> getAvailableYears(); // Lấy list năm
+    List<ProductSelectDTO> getAllProductsForFilter(); // Lấy list sản phẩm
 }

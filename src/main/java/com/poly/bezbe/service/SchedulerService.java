@@ -25,6 +25,7 @@ public class SchedulerService {
      * Tác vụ 1: Kích hoạt (BẬT) Khuyến mãi & Coupon sắp diễn ra.
      * Chạy vào 00:01 (1 phút sáng) mỗi ngày.
      */
+//    @Scheduled(fixedRate = 10000) // <-- Code test: Chạy mỗi 10 giây
     @Scheduled(cron = "0 1 0 * * *")
     @Transactional
     public void activatePendingItems() {
@@ -56,6 +57,7 @@ public class SchedulerService {
      * Tác vụ 2: Hủy (TẮT) Khuyến mãi & Coupon đã hết hạn.
      * Chạy vào 00:02 (2 phút sáng) mỗi ngày.
      */
+//    @Scheduled(fixedRate = 10000)
     @Scheduled(cron = "0 2 0 * * *")
     @Transactional
     public void deactivateExpiredItems() {
