@@ -28,9 +28,9 @@ public interface ProductService {
             String searchTerm,
             String status,
             String categoryName, // <-- Thêm
-            Double minPrice,     // <-- Thêm
-            Double maxPrice,      // <-- Thêm
-            Boolean hasVariants, // <-- THÊM VÀO ĐÂY
+            Double minPrice,
+            Double maxPrice,
+            Boolean hasVariants,
             String brandName,
             Long promotionId
     );

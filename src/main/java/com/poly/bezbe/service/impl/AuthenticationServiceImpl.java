@@ -35,8 +35,8 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
     private final EmailService emailService;
 
     // Đặt URL frontend của bạn ở đây (React app)
-    @Value("${app.client-url}") // Lấy giá trị từ application.properties
-    private String clientUrl; // Bỏ 'final' và giá trị hardcode
+    @Value("${app.client-url}")
+    private String clientUrl;
 
     /**
      * {@inheritDoc}
