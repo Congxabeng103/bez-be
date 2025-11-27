@@ -4,6 +4,7 @@ import com.poly.bezbe.entity.Coupon;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -48,5 +49,9 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     // 3. (MỚI) Dùng cho Scheduler (TỰ ĐỘNG TẮT)
     /** Tìm Coupon đã hết hạn (đang active và ngày kết thúc < hôm nay) */
     List<Coupon> findAllByActiveAndEndDateLessThan(boolean active, LocalDate today);
-    List<Coupon> findAllByActive(boolean active);
+    @Query("SELECT c FROM Coupon c WHERE c.active = true AND c.startDate <= :today AND c.endDate >= :today")
+    List<Coupon> findValidCoupons(@Param("today") LocalDate today);
+    @Modifying
+    @Query("UPDATE Coupon c SET c.usedCount = c.usedCount + 1 WHERE c.id = :id")
+    void incrementUsedCount(@Param("id") Long id);
 }

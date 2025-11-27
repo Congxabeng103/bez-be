@@ -16,7 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize; // <-- 1. IMPORT
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -27,20 +27,20 @@ public class UserController {
 
     private final UserService userService;
 
-    // --- CÁC API QUẢN LÝ (ADMIN) ---
+    // --- CÁC API QUẢN LÝ ---
 
-    // Chỉ Admin
+    // 1. Tạo nhân viên: Admin hoặc Manager đều được
     @PostMapping("/employees")
-    @PreAuthorize("hasAuthority('ADMIN')") // <-- 2. THÊM
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<UserResponseDTO>> createEmployee(
             @Valid @RequestBody EmployeeRequestDTO request) {
         UserResponseDTO newEmployee = userService.createEmployee(request);
         return new ResponseEntity<>(ApiResponseDTO.success(newEmployee, "Tạo nhân viên thành công"), HttpStatus.CREATED);
     }
 
-    // Cả 3 vai trò (Manager/Staff xem khách hàng)
+    // 2. Xem khách hàng: Ai cũng được xem (Trừ User thường)
     @GetMapping("/customers")
-    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')") // <-- 3. THÊM
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<UserResponseDTO>>> getCustomers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
@@ -48,6 +48,7 @@ public class UserController {
             @RequestParam(defaultValue = "createdAt,desc") String sort,
             @RequestParam(defaultValue = "ACTIVE") String status
     ) {
+        // ... (Giữ nguyên logic paging) ...
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
@@ -56,9 +57,9 @@ public class UserController {
         return ResponseEntity.ok(ApiResponseDTO.success(userPage, "Lấy danh sách khách hàng thành công"));
     }
 
-    // Chỉ Admin (Quản lý nhân viên)
+    // 3. Xem nhân viên: Admin và Manager (Manager xem để quản lý Staff)
     @GetMapping("/employees")
-    @PreAuthorize("hasAuthority('ADMIN')") // <-- 4. THÊM
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<PageResponseDTO<UserResponseDTO>>> getEmployees(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "5") int size,
@@ -66,6 +67,7 @@ public class UserController {
             @RequestParam(defaultValue = "createdAt,desc") String sort,
             @RequestParam(defaultValue = "ACTIVE") String status
     ) {
+        // ... (Giữ nguyên logic paging) ...
         String[] sortParams = sort.split(",");
         Sort.Direction direction = sortParams[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
         Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortParams[0]));
@@ -74,9 +76,10 @@ public class UserController {
         return ResponseEntity.ok(ApiResponseDTO.success(userPage, "Lấy danh sách nhân viên thành công"));
     }
 
-    // Chỉ Admin
+    // 4. Cập nhật User (Chung cho cả NV và KH): Mở quyền cho cả 3
+    // Logic chặn ai sửa ai sẽ nằm ở Service
     @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')") // <-- 5. THÊM
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER', 'STAFF')")
     public ResponseEntity<ApiResponseDTO<UserResponseDTO>> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UserRequestDTO request) {
@@ -84,19 +87,26 @@ public class UserController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedUser, "Cập nhật người dùng thành công"));
     }
 
-    // Chỉ Admin
+    // 5. Ngừng hoạt động (Soft Delete): Admin và Manager
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')") // <-- 6. THÊM
+    @PreAuthorize("hasAnyAuthority('ADMIN', 'MANAGER')")
     public ResponseEntity<ApiResponseDTO<Object>> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id); // Soft delete
+        userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponseDTO.success(null, "Ngừng hoạt động người dùng thành công"));
     }
 
-    // --- CÁC API CỦA PROFILE (USER TỰ CẬP NHẬT) ---
+    // 6. Xóa cứng: CHỈ ADMIN (Giữ nguyên)
+    @DeleteMapping("/permanent-delete/{id}")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteUser(@PathVariable Long id) {
+        userService.permanentDeleteUser(id);
+        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn người dùng thành công"));
+    }
 
-    // Chỉ User/Staff/Manager/Admin tự làm (Đã đăng nhập)
+    // --- CÁC API PROFILE (Giữ nguyên) ---
+    // ... (Giữ nguyên code updateProfile, updatePassword, updateAddress) ...
     @PutMapping("/profile")
-    @PreAuthorize("isAuthenticated()") // <-- 7. THÊM
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponseDTO<UserResponseDTO>> updateProfile(
             @Valid @RequestBody UpdateProfileRequestDTO request) {
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -104,28 +114,19 @@ public class UserController {
         return ResponseEntity.ok(ApiResponseDTO.success(updatedUser, "Cập nhật hồ sơ thành công"));
     }
 
-    // Chỉ User/Staff/Manager/Admin tự làm (Đã đăng nhập)
     @PostMapping("/update-password")
-    @PreAuthorize("isAuthenticated()") // <-- 8. THÊM
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponseDTO<Object>> updatePassword(@Valid @RequestBody UpdatePasswordRequestDTO request) {
         String message = userService.updatePassword(request);
         return ResponseEntity.ok(ApiResponseDTO.success(null, message));
     }
+
     @PutMapping("/profile/address")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponseDTO<UserResponseDTO>> updateAddress(
             @Valid @RequestBody UpdateAddressRequestDTO request) {
-
         String userEmail = SecurityContextHolder.getContext().getAuthentication().getName();
         UserResponseDTO updatedUser = userService.updateAddress(userEmail, request);
         return ResponseEntity.ok(ApiResponseDTO.success(updatedUser, "Cập nhật địa chỉ thành công"));
     }
-    @DeleteMapping("/permanent-delete/{id}")
-    @PreAuthorize("hasAuthority('ADMIN')")
-    public ResponseEntity<ApiResponseDTO<Object>> permanentDeleteUser(@PathVariable Long id) {
-        // Hàm này đã tồn tại trong UserServiceImpl và đã có logic "thông minh"
-        userService.permanentDeleteUser(id);
-        return ResponseEntity.ok(ApiResponseDTO.success(null, "Xóa vĩnh viễn người dùng thành công"));
-    }
-
 }

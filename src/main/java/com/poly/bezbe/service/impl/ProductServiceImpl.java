@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 // import java.util.Optional; // <-- BỎ import này
@@ -38,7 +39,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductOptionRepository productOptionRepository;
     private final ProductOptionValueRepository productOptionValueRepository;
     private final ProductImageRepository productImageRepository;
-
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
 
     // === SỬA HÀM NÀY ===
     private ProductResponseDTO mapToProductDTO(Product product) {
@@ -66,7 +67,7 @@ public class ProductServiceImpl implements ProductService {
             promotionName = promotion.getName();
             isPromotionStillValid = false;
             if (promotion.isActive()) {
-                LocalDate today = LocalDate.now();
+                LocalDate today = LocalDate.now(VIETNAM_ZONE);
                 if (!today.isBefore(promotion.getStartDate()) && !today.isAfter(promotion.getEndDate())) {
                     isPromotionStillValid = true;
                     BigDecimal discountPercent = promotion.getDiscountValue();

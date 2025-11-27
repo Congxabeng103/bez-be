@@ -1,4 +1,4 @@
-package com.poly.bezbe.service.impl; // <-- Chuyển sang package 'impl'
+package com.poly.bezbe.service.impl;
 
 import com.poly.bezbe.config.JwtService;
 import com.poly.bezbe.dto.request.auth.*;
@@ -9,7 +9,7 @@ import com.poly.bezbe.enums.Role;
 import com.poly.bezbe.exception.DuplicateResourceException;
 import com.poly.bezbe.exception.ResourceNotFoundException;
 import com.poly.bezbe.repository.UserRepository;
-import com.poly.bezbe.service.AuthenticationService; // <-- Import interface
+import com.poly.bezbe.service.AuthenticationService;
 import com.poly.bezbe.service.EmailService;
 import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +24,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.UUID;
 
-@Service // <-- @Service nằm ở lớp Impl
+@Service
 @RequiredArgsConstructor
-public class AuthenticationServiceImpl implements AuthenticationService { // <-- Implement interface
+public class AuthenticationServiceImpl implements AuthenticationService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -41,12 +41,20 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
+    @Override
     @Transactional
     public String register(RegisterRequestDTO request) {
+        // 1. Kiểm tra trùng Email
         userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
             throw new DuplicateResourceException("Email đã được sử dụng.");
         });
+
+        // 2. Kiểm tra trùng Số điện thoại (Nếu người dùng có nhập)
+        if (request.getPhone() != null && !request.getPhone().isBlank()) {
+            if (userRepository.existsByPhone(request.getPhone().trim())) {
+                throw new DuplicateResourceException("Số điện thoại đã được sử dụng.");
+            }
+        }
 
         String activationToken = UUID.randomUUID().toString();
 
@@ -55,6 +63,10 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
                 .lastName(request.getLastName() != null ? request.getLastName().trim() : "")
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
+
+                // 3. Lưu số điện thoại vào Entity
+                .phone(request.getPhone() != null ? request.getPhone().trim() : null)
+
                 .role(Role.USER)
                 .provider(AuthProvider.LOCAL)
                 .isActive(false)
@@ -78,7 +90,6 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
             emailService.sendHtmlEmail(user.getEmail(), "Kích hoạt tài khoản BezBe", htmlBody);
         } catch (MessagingException e) {
             System.err.println("Lỗi khi gửi email kích hoạt: " + e.getMessage());
-            // Cân nhắc: Có thể ném ra một ngoại lệ tùy chỉnh ở đây nếu việc gửi email thất bại là nghiêm trọng
         }
 
         return "Đăng ký thành công! Vui lòng kiểm tra email để kích hoạt tài khoản.";
@@ -87,8 +98,8 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
-    @Transactional // Thêm Transactional cho thao tác cập nhật
+    @Override
+    @Transactional
     public String activateAccount(String token) {
         User user = userRepository.findByActivationToken(token)
                 .orElseThrow(() -> new ResourceNotFoundException("Token kích hoạt không hợp lệ hoặc đã hết hạn."));
@@ -123,7 +134,6 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
         String firstName = (user.getFirstName() != null ? user.getFirstName() : "");
         String fullName = (lastName + " " + firstName).trim();
 
-        // --- SỬA PHẦN BUILDER NÀY ---
         return AuthenticationResponseDTO.builder()
                 .accessToken(jwtToken)
                 .tokenType("Bearer")
@@ -137,8 +147,6 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
                 .phone(user.getPhone())
                 .gender(user.getGender() != null ? user.getGender().name() : null)
                 .dob(user.getDob() != null ? user.getDob().toString() : null)
-
-                // --- BẮT ĐẦU THÊM MỚI (MAP) ---
                 .streetAddress(user.getStreetAddress())
                 .provinceCode(user.getProvinceCode())
                 .provinceName(user.getProvinceName())
@@ -146,16 +154,14 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
                 .districtName(user.getDistrictName())
                 .wardCode(user.getWardCode())
                 .wardName(user.getWardName())
-                // --- KẾT THÚC THÊM MỚI (MAP) ---
-
                 .build();
     }
 
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
-    @Transactional // Thêm Transactional cho thao tác cập nhật
+    @Override
+    @Transactional
     public String forgotPassword(ForgotPasswordRequestDTO request) {
         userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
             String resetToken = UUID.randomUUID().toString();
@@ -188,8 +194,8 @@ public class AuthenticationServiceImpl implements AuthenticationService { // <--
     /**
      * {@inheritDoc}
      */
-    @Override // <-- Thêm @Override
-    @Transactional // Thêm Transactional cho thao tác cập nhật
+    @Override
+    @Transactional
     public String resetPassword(ResetPasswordRequestDTO request) {
         User user = userRepository.findByResetPasswordToken(request.getToken())
                 .orElseThrow(() -> new ResourceNotFoundException("Token không hợp lệ hoặc đã hết hạn."));

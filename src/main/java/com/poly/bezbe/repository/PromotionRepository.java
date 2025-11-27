@@ -47,4 +47,11 @@ public interface PromotionRepository extends JpaRepository<Promotion, Long> {
     /** Tìm KM đã hết hạn (đang active và ngày kết thúc < hôm nay) */
     List<Promotion> findAllByActiveAndEndDateLessThan(boolean active, LocalDate today);
     List<Promotion> findAllByActive(boolean active);
+    // Query lấy Promotion Active VÀ Đang trong thời gian hiệu lực
+    @Query("SELECT p FROM Promotion p WHERE p.active = true AND p.startDate <= :today AND p.endDate >= :today ORDER BY p.endDate ASC")
+    List<Promotion> findValidPromotions(@Param("today") LocalDate today);
+    // Tìm các KM đang Active VÀ (Chưa hết hạn HOẶC Sắp diễn ra)
+    // Logic: endDate >= today (Chỉ cần chưa kết thúc là được, không quan tâm startDate)
+    @Query("SELECT p FROM Promotion p WHERE p.active = true AND p.endDate >= :today ORDER BY p.startDate ASC")
+    List<Promotion> findAvailablePromotionsForProduct(@Param("today") LocalDate today);
 }

@@ -18,7 +18,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity // Kích hoạt @PreAuthorize ở Controller
 @RequiredArgsConstructor
 public class SecurityConfiguration {
     private final JwtAuthenticationFilter jwtAuthFilter;
@@ -27,16 +27,13 @@ public class SecurityConfiguration {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // (Giữ nguyên code CORS của bạn)
-        configuration.setAllowedOrigins(List.of("http://localhost:3000","https://white-flower-07d68e500.3.azurestaticapps.net"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "https://white-flower-07d68e500.3.azurestaticapps.net"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        // Sửa: Áp dụng CORS cho tất cả API (/**) thay vì chỉ (/api/**)
-        // để bao gồm cả /api/v1/contact
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
@@ -49,89 +46,63 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
 
                         // 1. API CÔNG KHAI
-                        .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/api/v1/contact").permitAll()
                         .requestMatchers(HttpMethod.GET,
-                                // (Các API cũ của bạn)
-                                "/api/v1/products",
-                                "/api/v1/products/max-price",
-                                "/api/v1/products/detail/**",
+                                "/api/v1/products/**", // Gom gọn lại
                                 "/api/v1/categories/all-brief",
                                 "/api/v1/brands/all-brief",
                                 "/api/v1/variants/find",
+                                "/api/v1/reviews/**",
                                 "/api/v1/payment/vnpay-return/**",
                                 "/api/v1/payment/vnpay-ipn/**",
-                                "/api/v1/promotions/public/latest",
-                                "/api/v1/coupons/public",
-                                "/api/v1/promotions/public/active",
-                                "/api/v1/coupons/public/all"
+                                "/api/v1/promotions/public/**",
+                                "/api/v1/coupons/public/**"
                         ).permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/contact").permitAll()
 
-
-                        // 2. API CỦA USER (ĐÃ ĐĂNG NHẬP)
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/coupons/validate",
-                                "/api/v1/orders/my-orders",
-                                "/api/v1/orders/my-orders/**"
-                        ).authenticated()
-                        .requestMatchers(HttpMethod.PUT,
-                                "/api/v1/orders/my-orders/**"
-                        ).authenticated()
-                        .requestMatchers(HttpMethod.POST,
+                        // 2. API CỦA USER (ĐÃ ĐĂNG NHẬP) - Profile & Order cá nhân
+                        .requestMatchers(
+                                "/api/v1/users/profile/**", // Bao gồm cả update address, password
+                                "/api/v1/users/update-password",
+                                "/api/v1/orders/my-orders/**",
                                 "/api/v1/orders/create",
+                                "/api/v1/coupons/validate",
                                 "/api/v1/payment/{orderId}/retry-vnpay"
                         ).authenticated()
-
-                        // ===============================================
-                        // ⭐ SỬA LỖI: THÊM 3 DÒNG NÀY VÀO
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/users/profile").authenticated()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/users/update-password").authenticated()
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/users/profile/address").authenticated()
-                        // ===============================================
-
 
                         // 3. API VẬN HÀNH (STAFF, MANAGER, ADMIN)
                         .requestMatchers(
                                 "/api/v1/orders/**",
-                                "/api/v1/payment/**",
-                                "/api/v1/users/customers",
-                                "/api/v1/users/employees"
+                                "/api/v1/payment/**"
                         ).hasAnyAuthority("ADMIN", "STAFF", "MANAGER")
 
-                        // 4. API QUẢN TRỊ (MANAGER, ADMIN)
+                        // 4. API QUẢN TRỊ (MANAGER, ADMIN) - Sản phẩm, Khuyến mãi
                         .requestMatchers(HttpMethod.POST,
-                                "/api/v1/products/**",
-                                "/api/v1/categories/**",
-                                "/api/v1/brands/**",
-                                "/api/v1/attributes/**",
-                                "/api/v1/variants/**",
-                                "/api/v1/promotions/**",
-                                "/api/v1/coupons/**"
+                                "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
+                                "/api/v1/attributes/**", "/api/v1/variants/**",
+                                "/api/v1/promotions/**", "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
+
                         .requestMatchers(HttpMethod.PUT,
-                                "/api/j/v1/products/**", // <-- Bạn có 1 chữ "j" thừa ở đây, nên kiểm tra lại
-                                "/api/v1/categories/**",
-                                "/api/v1/brands/**",
-                                "/api/v1/attributes/**",
-                                "/api/v1/variants/**",
-                                "/api/v1/promotions/**",
-                                "/api/v1/coupons/**"
+                                "/api/v1/products/**", // Đã xóa chữ 'j' thừa
+                                "/api/v1/categories/**", "/api/v1/brands/**",
+                                "/api/v1/attributes/**", "/api/v1/variants/**",
+                                "/api/v1/promotions/**", "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
+
                         .requestMatchers(HttpMethod.DELETE,
-                                "/api/v1/products/**",
-                                "/api/v1/categories/**",
-                                "/api/v1/brands/**",
-                                "/api/v1/attributes/**",
-                                "/api/v1/variants/**",
-                                "/api/v1/promotions/**",
-                                "/api/v1/coupons/**"
+                                "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/brands/**",
+                                "/api/v1/attributes/**", "/api/v1/variants/**",
+                                "/api/v1/promotions/**", "/api/v1/coupons/**"
                         ).hasAnyAuthority("ADMIN", "MANAGER")
+
                         .requestMatchers(HttpMethod.GET, "/api/v1/dashboard/**").hasAnyAuthority("ADMIN", "MANAGER")
 
-                        // 5. API ADMIN TỐI CAO
-                        // (Quy tắc này giờ sẽ bắt các API còn lại của /users/
-                        //  như /employees, /permanent-delete/{id}, v.v.)
-                        .requestMatchers("/api/v1/users/**").hasAuthority("ADMIN")
+                        // ==================================================================
+                        // ⭐ SỬA LỖI QUAN TRỌNG TẠI ĐÂY ⭐
+                        // Thay vì chặn cứng bằng .hasAuthority("ADMIN"), ta mở cửa cho authenticated()
+                        // Để Controller (@PreAuthorize) tự phân quyền ai được xóa, ai được sửa.
+                        // ==================================================================
+                        .requestMatchers("/api/v1/users/**").authenticated()
 
                         // 6. Mọi request còn lại
                         .anyRequest().authenticated()

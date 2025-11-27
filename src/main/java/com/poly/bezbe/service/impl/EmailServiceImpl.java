@@ -68,13 +68,16 @@ public class EmailServiceImpl implements EmailService { // <-- Implement interfa
     @Override
     public void sendPaymentSuccessEmail(Order order) {
         try {
-            String subject = "Thanh toán thành công đơn hàng #" + order.getOrderNumber();
+            String subject = "Xác nhận thanh toán thành công đơn hàng #" + order.getOrderNumber();
             String htmlBody = String.format(
                     "<h1>Thanh toán thành công!</h1>" +
                             "<p>Chào %s,</p>" +
-                            "<p>Chúng tôi xác nhận đã nhận thanh toán thành công cho đơn hàng #%s.</p>" +
-                            "<p>Đơn hàng của bạn đang được xử lý.</p>",
+                            "<p>Hệ thống đã ghi nhận khoản thanh toán <b>%s VND</b> của bạn qua VNPAY cho đơn hàng #%s.</p>" +
+                            "<p>Chúng tôi đang tiến hành <b>kiểm tra tồn kho lần cuối và đóng gói sản phẩm</b>.</p>" +
+                            "<p><i>(Trong trường hợp hiếm gặp nếu sản phẩm vừa hết hàng, chúng tôi sẽ liên hệ để hoàn tiền ngay lập tức).</i></p>" +
+                            "<p>Cảm ơn bạn đã tin tưởng mua sắm!</p>",
                     order.getCustomerName(),
+                    order.getTotalAmount().toBigInteger().toString(), // Thêm số tiền cho rõ ràng
                     order.getOrderNumber()
             );
             sendHtmlEmail(order.getEmail(), subject, htmlBody);

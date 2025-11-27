@@ -132,8 +132,7 @@ public class OrderServiceImpl implements OrderService {
         orderItemRepository.saveAll(orderItems);
 
         if (coupon != null) {
-            coupon.setUsedCount(coupon.getUsedCount() + 1);
-            couponRepository.save(coupon);
+            couponRepository.incrementUsedCount(coupon.getId());
         }
 
         cartRepository.deleteAll(cartItems);
@@ -591,22 +590,31 @@ public class OrderServiceImpl implements OrderService {
     public void subtractStockForOrder(Order order) {
         for (OrderItem item : order.getOrderItems()) {
             Variant variant = item.getVariant();
-            if (variant.getStockQuantity() < item.getQuantity()) {
-                throw new BusinessRuleException("Sản phẩm '" + variant.getProduct().getName() + "' (ID: " + variant.getId() + ") không đủ tồn kho.");
+            int quantityToBuy = item.getQuantity();
+
+            // SỬA: Gọi hàm trừ trực tiếp trong Database thay vì get/set trong Java
+            // Hàm reduceStock sẽ trả về số dòng được update (1 = thành công, 0 = thất bại)
+            int updatedRows = variantRepository.reduceStock(variant.getId(), quantityToBuy);
+
+            if (updatedRows == 0) {
+                // Nếu = 0 nghĩa là điều kiện (stock >= quantity) sai -> Hết hàng
+                // Lúc này Transaction sẽ rollback, đơn hàng không được tạo/xác nhận
+                throw new BusinessRuleException(
+                        "Sản phẩm '" + variant.getProduct().getName() + "' (Phiên bản: " + variant.getSku() + ") hiện không đủ số lượng tồn kho."
+                );
             }
-            variant.setStockQuantity(variant.getStockQuantity() - item.getQuantity());
-            variantRepository.save(variant);
         }
     }
 
     public void returnStockForOrder(Order order) {
         for (OrderItem item : order.getOrderItems()) {
             Variant variant = item.getVariant();
-            variant.setStockQuantity(variant.getStockQuantity() + item.getQuantity());
-            variantRepository.save(variant);
+            int quantityToReturn = item.getQuantity();
+
+            // Gọi hàm cộng kho trực tiếp trong Database
+            variantRepository.increaseStock(variant.getId(), quantityToReturn);
         }
     }
-
 
     @Override
     @Transactional(readOnly = true)

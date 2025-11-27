@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -31,7 +32,7 @@ public class PromotionServiceImpl implements PromotionService {
 
     private final PromotionRepository promotionRepository;
     private final ProductRepository productRepository;
-
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private PromotionResponseDTO mapToPromotionDTO(Promotion promotion) {
         long count = productRepository.countByPromotion(promotion);
         return PromotionResponseDTO.builder()
@@ -63,30 +64,18 @@ public class PromotionServiceImpl implements PromotionService {
                 promotionPage.getTotalElements(), promotionPage.getTotalPages());
     }
 
-    /**
-     * (HÀM HELPER)
-     * Ném lỗi nếu admin cố kích hoạt KM không hợp lệ.
-     */
     private boolean determineActiveStatus(LocalDate startDate, LocalDate endDate, boolean formIsActive) {
-        // 1. Nếu admin muốn "TẮT" (bản nháp), luôn là false. Không cần validate.
-        if (!formIsActive) {
-            return false;
-        }
+        if (!formIsActive) return false;
 
-        // 2. Nếu admin muốn "BẬT", chúng ta phải validate
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(VIETNAM_ZONE); // <--- SỬA
 
-        // 3. Nếu admin BẬT một KM đã hết hạn -> NÉM LỖI
         if (endDate.isBefore(today)) {
-            throw new BusinessRuleException("Lỗi: Không thể kích hoạt. Ngày kết thúc đã ở trong quá khứ. (Gia hạn lại ngày kết thúc nếu muốn kích hoạt lại)");
+            throw new BusinessRuleException("Lỗi: Không thể kích hoạt KM đã hết hạn.");
         }
 
-        // 4. Nếu admin BẬT một KM chưa tới ngày -> NÉM LỖI
-        if (startDate.isAfter(today)) {
-            throw new BusinessRuleException("Lỗi: Không thể kích hoạt. Ngày bắt đầu đang ở trong tương lai. (Bỏ tick 'Kích hoạt' để lưu nháp hoặc sửa lại ngày bắt đầu)");
-        }
+        // Cho phép Active kể cả khi chưa đến ngày (để lên lịch)
+        // BỎ đoạn check startDate.isAfter(today)
 
-        // 5. Nếu đang trong hạn -> true (OK)
         return true;
     }
 
@@ -157,7 +146,11 @@ public class PromotionServiceImpl implements PromotionService {
     @Override
     @Transactional(readOnly = true)
     public List<PromotionBriefDTO> getPromotionBriefList() {
-        return promotionRepository.findAllByActiveTrue(Sort.by(Sort.Direction.ASC, "name"))
+        // Lấy ngày hiện tại (VN)
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+
+        // Gọi hàm mới
+        return promotionRepository.findAvailablePromotionsForProduct(today)
                 .stream()
                 .map(promo -> PromotionBriefDTO.builder()
                         .id(promo.getId())
@@ -191,8 +184,14 @@ public class PromotionServiceImpl implements PromotionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PromotionResponseDTO> getActivePromotions() {
-        List<Promotion> promotions = promotionRepository.findAllByActive(true);
+    public List<PromotionResponseDTO> getActivePromotions() { // Hoặc getPublicActivePromotions tùy tên hàm bạn đặt
+
+        // 2. Lấy ngày hiện tại chuẩn giờ VN
+        LocalDate today = LocalDate.now(VIETNAM_ZONE);
+
+        // 3. Gọi query mới
+        List<Promotion> promotions = promotionRepository.findValidPromotions(today);
+
         return promotions.stream()
                 .map(this::mapToPromotionDTO)
                 .collect(Collectors.toList());

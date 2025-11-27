@@ -1,6 +1,7 @@
 package com.poly.bezbe.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -34,7 +35,9 @@ public class Variant {
     @Column(name = "price", precision = 19, scale = 2)
     private BigDecimal price;
 
-    @Column(name = "stock_quantity")
+    @Min(value = 0, message = "Số lượng tồn kho không thể âm") // <-- 2. Chặn ở lớp Java (Validation)
+    // 3. Chặn cứng ở lớp Database (SQL Server/MySQL đều hiểu CHECK)
+    @Column(name = "stock_quantity", columnDefinition = "int DEFAULT 0 CHECK (stock_quantity >= 0)")
     private Integer stockQuantity;
 
     @Column(name = "image_url", columnDefinition = "NVARCHAR(512)") // <-- SỬA

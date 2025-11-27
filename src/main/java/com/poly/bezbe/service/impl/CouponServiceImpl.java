@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,7 +29,7 @@ import java.util.stream.Collectors;
 public class CouponServiceImpl implements CouponService {
 
     private final CouponRepository couponRepository;
-
+    private static final ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
     private CouponResponseDTO mapToCouponDTO(Coupon coupon) {
         return CouponResponseDTO.builder()
                 .id(coupon.getId())
@@ -63,22 +64,22 @@ public class CouponServiceImpl implements CouponService {
     }
 
     /**
-     * (HÀM HELPER)
-     * Ném lỗi nếu admin cố kích hoạt coupon không hợp lệ.
+     * SỬA LẠI LOGIC CHECK TRẠNG THÁI KHI TẠO/SỬA
+     * - Dùng múi giờ VN.
+     * - Cho phép startDate ở tương lai (để lên lịch).
+     * - Chỉ chặn nếu endDate ở quá khứ.
      */
     private boolean determineActiveStatus(LocalDate startDate, LocalDate endDate, boolean formIsActive) {
-        if (!formIsActive) {
-            return false;
-        }
-        LocalDate today = LocalDate.now();
+        if (!formIsActive) return false;
+
+        // Lấy ngày hiện tại theo giờ VN
+        LocalDate today = LocalDate.now(VIETNAM_ZONE);
 
         if (endDate.isBefore(today)) {
-            throw new BusinessRuleException("Lỗi: Không thể kích hoạt. Ngày kết thúc đã ở trong quá khứ.");
+            throw new BusinessRuleException("Lỗi: Không thể kích hoạt coupon đã hết hạn (Ngày kết thúc < Hôm nay).");
         }
 
-        if (startDate.isAfter(today)) {
-            throw new BusinessRuleException("Lỗi: Không thể kích hoạt. Ngày bắt đầu là ở trong tương lai. (Bỏ tick 'Kích hoạt' để lưu nháp)");
-        }
+        // BỎ đoạn check startDate.isAfter(today) -> Cho phép admin lên lịch chạy ngầm.
 
         return true;
     }
@@ -154,28 +155,45 @@ public class CouponServiceImpl implements CouponService {
         couponRepository.save(coupon);
     }
 
+    /**
+     * SỬA LẠI LOGIC VALIDATE KHI KHÁCH ÁP DỤNG (QUAN TRỌNG NHẤT)
+     * - Check song song: Cờ Active VÀ Thời gian thực.
+     */
     @Override
     @Transactional(readOnly = true)
     public Coupon validateCoupon(String code, BigDecimal subtotal) {
-        if (code == null || code.trim().isEmpty()) {
-            return null;
-        }
+        if (code == null || code.trim().isEmpty()) return null;
+
         Coupon coupon = couponRepository.findByCodeIgnoreCase(code.trim())
                 .orElseThrow(() -> new ResourceNotFoundException("Mã giảm giá không hợp lệ"));
+
+        // 1. Admin đã tắt nóng coupon này?
         if (!coupon.isActive()) {
-            throw new BusinessRuleException("Mã giảm giá đã hết hạn sử dụng");
+            throw new BusinessRuleException("Mã giảm giá đã bị vô hiệu hóa hoặc chưa đến đợt chạy.");
         }
-        LocalDate today = LocalDate.now();
-        if (today.isBefore(coupon.getStartDate()) || today.isAfter(coupon.getEndDate())) {
-            throw new BusinessRuleException("Mã giảm giá không nằm trong thời gian áp dụng");
+
+        // 2. CHECK THỜI GIAN THỰC (Phòng hờ scheduler chưa chạy hoặc bị treo)
+        LocalDate today = LocalDate.now(VIETNAM_ZONE);
+
+        if (today.isBefore(coupon.getStartDate())) {
+            throw new BusinessRuleException("Mã giảm giá chưa có hiệu lực. Bắt đầu từ ngày: " + coupon.getStartDate());
         }
+
+        if (today.isAfter(coupon.getEndDate())) {
+            throw new BusinessRuleException("Mã giảm giá đã hết hạn sử dụng.");
+        }
+
+        // 3. Check số lượng
         if (coupon.getUsageLimit() > 0 && coupon.getUsedCount() >= coupon.getUsageLimit()) {
-            throw new BusinessRuleException("Mã giảm giá đã hết lượt sử dụng");
+            throw new BusinessRuleException("Mã giảm giá đã hết lượt sử dụng.");
         }
-        if (subtotal.compareTo(coupon.getMinOrderAmount()) < 0) {
-            throw new BusinessRuleException("Đơn hàng chưa đạt giá trị tối thiểu ("
-                    + coupon.getMinOrderAmount() + "đ) để áp dụng mã");
+
+        // 4. Check giá trị đơn hàng
+        if (coupon.getMinOrderAmount() != null && subtotal.compareTo(coupon.getMinOrderAmount()) < 0) {
+            // Format tiền cho đẹp (Tùy chọn)
+            throw new BusinessRuleException(String.format("Đơn hàng chưa đạt giá trị tối thiểu (%,.0fđ) để áp dụng mã.", coupon.getMinOrderAmount()));
         }
+
         return coupon;
     }
 
@@ -202,8 +220,14 @@ public class CouponServiceImpl implements CouponService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<CouponResponseDTO> getAllPublicActiveCoupons() {
-        List<Coupon> coupons = couponRepository.findAllByActive(true);
+    public List<CouponResponseDTO> getAllPublicActiveCoupons() { // Hoặc hàm getPublicActiveCoupons tùy code bạn
+
+        // Lấy ngày hiện tại theo giờ VN
+        LocalDate today = LocalDate.now(VIETNAM_ZONE);
+
+        // Gọi hàm query mới -> Chỉ lấy những cái ĐANG chạy thực sự
+        List<Coupon> coupons = couponRepository.findValidCoupons(today);
+
         return coupons.stream()
                 .map(this::mapToCouponDTO)
                 .collect(Collectors.toList());

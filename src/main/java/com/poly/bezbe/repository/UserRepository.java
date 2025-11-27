@@ -48,4 +48,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
 
     long countByRole(Role role);
+    boolean existsByPhoneAndIdNot(String phone, Long id);
+    boolean existsByPhone(String phone);
 }
