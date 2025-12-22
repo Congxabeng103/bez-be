@@ -71,7 +71,6 @@ public class ReviewServiceImpl implements ReviewService {
             }
         } else {
             // USER: Chỉ lấy cái hiện (Visible = true)
-            // LƯU Ý: Repository phải có hàm tên là ...VisibleTrue
             if (rating != null && rating > 0) {
                 page = reviewRepository.findByProductIdAndRatingAndVisibleTrue(productId, rating, sortedPageable);
             } else {
